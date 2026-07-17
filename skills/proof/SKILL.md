@@ -38,14 +38,15 @@ A stale server from another checkout will happily serve old code and every journ
 
 ### 3. Write the runner from the template
 
-Copy `references/run-template.mjs` into a `<feature>-journeys/` folder at the repo root and adapt it. The template gives you the harness contract:
+Copy `references/run-template.mjs` (as `run.mjs`) and `references/report-template.mjs` (as `report.mjs`, verbatim — no edits needed) into a `<feature>-journeys/` folder at the repo root and adapt the runner. The template gives you the harness contract:
 
 - **Real Chrome, headless, phone viewport** (390×844, dpr 2) — review-stage proof looks like the product, not a 1920px dev window.
 - **Fresh throwaway users per journey** with a greppable email prefix (e.g. `fpj_…@t.com`), purged at the start of every run so reruns are deterministic.
 - **Stage state through APIs/DB, drive UI only for what the user would do.** Registration flags, onboarding, seed posts — set them up via requests or SQL so each journey spends its time on the promise, not on typing into forms (except the journey whose promise IS the form).
 - **`rec(journey, step, ok, note)` for every step** — every claim in the report is an assertion that ran, pass or fail, never prose.
 - **`shot(page, journey, n, name)` after each user-visible state** — numbered screenshots into `shots/<journey>/`.
-- **A report writer** — `report.json` (machine) + `REPORT.md` (human, one section per journey with ✅/❌ per step). Exit non-zero on any failure.
+- **A `PROMISES` map** — one sentence per journey, quoted from the ticket. It headlines the TLDR in both reports, so a reviewer reads *what* was proven before *how*.
+- **The report writer** (`report.mjs`) — one call writes three views of the same results: `report.json` (machine), `REPORT.md` (GitHub-renderable: verdict + promises table + before/after pairs + ✅/❌ per step, screenshots inline), and `REPORT.html` (interactive page — before/after drag-sliders, per-journey filmstrips, viewport strip — with screenshots *embedded* as downscaled data URIs: one file that renders anywhere, including sandboxed preview panels, email, and Slack; full-res originals stay in `shots/`). Exit non-zero on any failure.
 
 ### 4. Run until green — then LOOK at the screenshots
 
@@ -61,26 +62,42 @@ One extra script, five sizes, four checks each: the new surface is visible, insi
 
 Recommended matrix: `320×568` (small phone), `390×844` (default), `430×932` (large phone), `768×1024` (tablet), `1280×800` (desktop). See `references/viewports-template.mjs`.
 
-### 6. Ship the proof pack
+### 6. Capture the before (optional — one extra run)
+
+If the change alters an existing surface — and *especially* for a bugfix — capture the merge-base build so the reports carry before/after evidence:
+
+```bash
+git worktree add /tmp/proof-base $(git merge-base HEAD origin/main)
+# boot that checkout on a second port, then:
+PORT=5002 node <feature>-journeys/run.mjs --baseline
+node <feature>-journeys/run.mjs   # regenerate reports — pairs appear automatically
+```
+
+Baseline runs are capture-only: same journeys, same shot names, but shots land in `shots-baseline/`, assertions don't gate (the feature isn't supposed to exist back there), and no reports are written. The report writer pairs shots by journey + filename: REPORT.md gets a side-by-side table, REPORT.html gets drag-sliders. For a bugfix, the before-shot *showing the bug* is the strongest evidence a pack can carry. Write journeys with `count()`-guarded lookups (see the demo) so a baseline run reaches every `shot()` instead of throwing on a surface that doesn't exist yet.
+
+### 7. Ship the proof pack
 
 Commit the whole folder with the PR:
 
 ```
 <feature>-journeys/
   run.mjs            # the journeys
+  report.mjs         # the report writer (verbatim from the template)
   viewports.mjs      # the size sweep
   report.json        # machine-readable results
-  REPORT.md          # human-readable: N passed / M failed + per-step detail
+  REPORT.md          # TLDR verdict + before/after + ✅/❌ per step — renders in the PR
+  REPORT.html        # interactive: sliders, filmstrips — open locally
   shots/<journey>/   # numbered screenshots
+  shots-baseline/    # (optional) merge-base captures for before/after pairs
   shots/viewports/   # one per size
 ```
 
-Paste the journey list + assertion count into the PR description. The reviewer should be able to judge the feature from the proof pack without checking out the branch.
+Paste REPORT.md's TLDR block (verdict line + promises table) into the PR description. The reviewer should be able to judge the feature from the proof pack without checking out the branch.
 
 ## Rules
 
 1. **Never mock the network layer.** The runner hits the same server a user would. If the app needs external services you can't run, stage their *effects* in the DB — don't stub the app's own API.
-2. **Assert, then screenshot.** A screenshot without an assertion is decoration; an assertion without a screenshot is unreviewable.
+2. **Assert, then screenshot.** A screenshot without an assertion is decoration; an assertion without a screenshot is unreviewable. (Baseline shots are the one sanctioned exception: capture-only by design, each one exists to pair with an asserted after-shot.)
 3. **Negative journeys are mandatory** for anything that filters, gates, hides, or permissions.
 4. **Deterministic reruns.** Prefix + purge test users; never depend on data an earlier run left behind; pin theme/locale via `localStorage` init scripts so screenshots are stable.
 5. **The suite exits non-zero on any failure** — wire it into CI or a pre-merge checklist if you want, but at minimum run it at review and commit the green report.

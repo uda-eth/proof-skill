@@ -1,23 +1,37 @@
 // /proof journey runner template.
-// Copy into <feature>-journeys/run.mjs at your repo root and adapt:
+// Copy into <feature>-journeys/ at your repo root as run.mjs (and copy
+// report-template.mjs next to it as report.mjs). Adapt:
 //  - BASE/PORT for your dev server
 //  - freshUser() for your app's register/onboarding flow
-//  - the JOURNEYS at the bottom for your feature's promises
+//  - the JOURNEYS + PROMISES at the bottom for your feature's promises
 //
 // Contract: every step is rec()'d (assertion), every user-visible state is
-// shot() (screenshot), report.json + REPORT.md are written, exit is non-zero
-// on any failure. Usage: node <feature>-journeys/run.mjs [journey1,journey2]
+// shot() (screenshot), report.json + REPORT.md + REPORT.html are written,
+// exit is non-zero on any failure.
+// Usage: node <feature>-journeys/run.mjs [--baseline] [journey1,journey2]
+//
+// --baseline captures the BEFORE side of before/after pairs. Stand up the
+// merge-base build on another port, then point the runner at it:
+//   git worktree add /tmp/proof-base $(git merge-base HEAD origin/main)
+//   (boot that checkout) && PORT=5002 node <feature>-journeys/run.mjs --baseline
+// Baseline runs are capture-only: same journeys, same shot names, but
+// assertions don't gate (the feature isn't supposed to exist yet), shots land
+// in shots-baseline/, and no reports are written. Rerun without --baseline
+// afterwards — the report writer pairs shots by journey + filename.
 import { chromium } from 'playwright';
 import { execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
+import { writeReports } from './report.mjs';
 
 const PORT = process.env.PORT || '5001';
 const BASE = `http://localhost:${PORT}`;
 const FOLDER = path.dirname(new URL(import.meta.url).pathname);
-const ROOT = path.join(FOLDER, 'shots');
+const ARGS = process.argv.slice(2);
+const BASELINE = ARGS.includes('--baseline');
+const ROOT = path.join(FOLDER, BASELINE ? 'shots-baseline' : 'shots');
 const USER_PREFIX = 'proof_'; // greppable + purgeable; change per suite if needed
-const ONLY = process.argv[2] ? process.argv[2].split(',') : null;
+const ONLY = ARGS.find(a => !a.startsWith('--'))?.split(',') ?? null;
 const results = [];
 let browser;
 
@@ -69,6 +83,11 @@ async function freshUser(j, name) {
     viewport: { width: 390, height: 844 }, // phone frame: proof looks like the product
     deviceScaleFactor: 2,
   });
+  // Baseline captures drive a build where the feature may not exist — fail
+  // fast on missing surfaces instead of hanging on the default 30s timeout.
+  // (Prefer count()-guarded lookups in journeys so baseline runs reach every
+  // shot; see the demo for the pattern.)
+  if (BASELINE) ctx.setDefaultTimeout(4000);
   // Pin theme/first-run flags so screenshots are deterministic and the feature
   // isn't hidden behind onboarding chrome. ADAPT to your app.
   await ctx.addInitScript(() => {
@@ -90,6 +109,14 @@ async function freshUser(j, name) {
 // ── journeys: one per promise the task makes to a user ──────────────────────
 const JOURNEYS = {};
 const J = (name, fn) => (JOURNEYS[name] = fn);
+
+// Quote each journey's promise from the ticket — it headlines the TLDR table
+// in both reports, so a reviewer reads WHAT was proven before HOW.
+const PROMISES = {
+  '01-happy-path': 'ADAPT: the core promise, in the ticket’s words',
+  '02-negative': 'ADAPT: what must NOT happen',
+  '03-persistence': 'ADAPT: what survives a reload/re-login',
+};
 
 J('01-happy-path', async () => {
   const j = '01-happy-path';
@@ -152,23 +179,21 @@ async function main() {
   }
   await browser.close();
 
-  const pass = results.filter(r => r.status === 'PASS').length;
-  const fail = results.filter(r => r.status === 'FAIL').length;
-  fs.writeFileSync(
-    path.join(FOLDER, 'report.json'),
-    JSON.stringify({ base: BASE, pass, fail, results }, null, 2)
-  );
-  const byJourney = {};
-  for (const r of results) (byJourney[r.journey] ||= []).push(r);
-  let md = `# Proof — user journeys\n\n${pass} passed / ${fail} failed against ${BASE}\n\n`;
-  for (const [name, rows] of Object.entries(byJourney)) {
-    md += `## ${name}\n\n`;
-    for (const r of rows)
-      md += `- ${r.status === 'PASS' ? '✅' : '❌'} ${r.step}${r.note ? ` — ${r.note}` : ''}\n`;
-    md += '\n';
+  if (BASELINE) {
+    // Capture-only: shots-baseline/ is the deliverable, failures expected.
+    console.log(
+      `\n(baseline) captured against ${BASE} — rerun without --baseline to regenerate reports with before/after pairs`
+    );
+    process.exit(0);
   }
-  fs.writeFileSync(path.join(FOLDER, 'REPORT.md'), md);
-  console.log(`\n${pass} passed / ${fail} failed — REPORT.md written`);
+  const { pass, fail } = await writeReports({
+    folder: FOLDER,
+    base: BASE,
+    title: 'user journeys', // ADAPT: the feature name
+    results,
+    promises: PROMISES,
+  });
+  console.log(`\n${pass} passed / ${fail} failed — REPORT.md + REPORT.html written`);
   process.exit(fail ? 1 : 0);
 }
 main();
