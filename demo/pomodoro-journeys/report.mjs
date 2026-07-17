@@ -3,12 +3,48 @@
 // disk. Writes three views of the same evidence:
 //   report.json  — machine-readable
 //   REPORT.md    — GitHub-renderable: TLDR verdict, before/after table, per-step detail
-//   REPORT.html  — self-contained interactive page (before/after sliders, filmstrips)
+//   REPORT.html  — ONE self-contained file: screenshots embedded (downscaled
+//                  JPEG data URIs), so it renders anywhere — sandboxed preview
+//                  panels, email, Slack — with zero external references.
+//                  Full-res originals stay in shots/; thumbnails link to them.
 // Before/after pairs appear automatically when shots-baseline/ exists (see
 // run.mjs --baseline): a baseline shot pairs with the branch shot of the same
-// journey + filename. No dependencies, no CDN — the page works offline.
+// journey + filename. No dependencies beyond the playwright you already run.
 import fs from 'fs';
 import path from 'path';
+
+// Downscale + JPEG-encode every referenced shot via headless Chromium (no
+// image deps needed — the runner already has playwright). Falls back to
+// relative paths if playwright is unavailable.
+async function embedImages(folder, rels, maxWidth = 640, quality = 0.72) {
+  try {
+    const { chromium } = await import('playwright');
+    const browser = await chromium.launch();
+    const page = await browser.newPage();
+    const map = {};
+    for (const rel of rels) {
+      const b64 = fs.readFileSync(path.join(folder, rel)).toString('base64');
+      map[rel] = await page.evaluate(
+        async ({ src, maxWidth, quality }) => {
+          const img = new Image();
+          await new Promise((res, rej) => ((img.onload = res), (img.onerror = rej), (img.src = src)));
+          const scale = Math.min(1, maxWidth / img.width);
+          const c = document.createElement('canvas');
+          c.width = Math.round(img.width * scale);
+          c.height = Math.round(img.height * scale);
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          return c.toDataURL('image/jpeg', quality);
+        },
+        { src: 'data:image/png;base64,' + b64, maxWidth, quality }
+      );
+    }
+    await browser.close();
+    return map;
+  } catch (e) {
+    console.log('(report) image embedding skipped:', String(e).slice(0, 80));
+    return {};
+  }
+}
 
 const pngs = d => {
   try {
@@ -21,7 +57,7 @@ const esc = s =>
   String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const stepLabel = f => f.replace(/^\d+-/, '').replace(/\.png$/, '');
 
-export function writeReports({ folder, base, title = 'user journeys', results, promises = {} }) {
+export async function writeReports({ folder, base, title = 'user journeys', results, promises = {} }) {
   const pass = results.filter(r => r.status === 'PASS').length;
   const fail = results.filter(r => r.status === 'FAIL').length;
   const proven = fail === 0 && pass > 0;
@@ -111,10 +147,13 @@ export function writeReports({ folder, base, title = 'user journeys', results, p
   // ── REPORT.html — the rich local view ─────────────────────────────────────
   // Design: an inspection certificate. Rotated verdict stamp over a monospaced
   // test ledger; chrome stays achromatic so the screenshots carry the color.
+  const allShots = [...new Set([...journeys.flatMap(j => j.shots), ...pairs.map(p => p.before), ...viewports])];
+  const embedded = await embedImages(folder, allShots);
+  const src = rel => embedded[rel] || rel;
   const badge = j =>
     `<span class="badge ${j.fail ? 'bad' : 'ok'}">${j.pass}/${j.pass + j.fail}</span>`;
-  const thumb = (src, cap) =>
-    `<a href="${src}" target="_blank"><img src="${src}" alt="${esc(cap)}" loading="lazy"><span class="cap">${esc(cap)}</span></a>`;
+  const thumb = (rel, cap) =>
+    `<a href="${rel}" target="_blank"><img src="${src(rel)}" alt="${esc(cap)}" loading="lazy"><span class="cap">${esc(cap)}</span></a>`;
   const html = `<!doctype html>
 <html lang="en">
 <head>
@@ -254,8 +293,8 @@ ${
         p => `<div class="pair">
       <div class="plabel"><span class="pj">${esc(p.journey)}</span><span class="ps">${esc(p.step)}</span></div>
       <div class="cmp">
-        <img src="${p.before}" alt="before — ${esc(p.step)}" loading="lazy">
-        <div class="after"><img src="${p.after}" alt="after — ${esc(p.step)}" loading="lazy"></div>
+        <img src="${src(p.before)}" alt="before — ${esc(p.step)}" loading="lazy">
+        <div class="after"><img src="${src(p.after)}" alt="after — ${esc(p.step)}" loading="lazy"></div>
         <span class="tag b">before</span><span class="tag a">after</span>
         <div class="divider"></div><div class="grip">◂▸</div>
       </div>

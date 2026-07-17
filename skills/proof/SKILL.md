@@ -46,7 +46,7 @@ Copy `references/run-template.mjs` (as `run.mjs`) and `references/report-templat
 - **`rec(journey, step, ok, note)` for every step** — every claim in the report is an assertion that ran, pass or fail, never prose.
 - **`shot(page, journey, n, name)` after each user-visible state** — numbered screenshots into `shots/<journey>/`.
 - **A `PROMISES` map** — one sentence per journey, quoted from the ticket. It headlines the TLDR in both reports, so a reviewer reads *what* was proven before *how*.
-- **The report writer** (`report.mjs`) — one call writes three views of the same results: `report.json` (machine), `REPORT.md` (GitHub-renderable: verdict + promises table + before/after pairs + ✅/❌ per step, screenshots inline), and `REPORT.html` (self-contained interactive page — before/after drag-sliders, per-journey filmstrips, viewport strip; no dependencies, opens offline). Exit non-zero on any failure.
+- **The report writer** (`report.mjs`) — one call writes three views of the same results: `report.json` (machine), `REPORT.md` (GitHub-renderable: verdict + promises table + before/after pairs + ✅/❌ per step, screenshots inline), and `REPORT.html` (interactive page — before/after drag-sliders, per-journey filmstrips, viewport strip — with screenshots *embedded* as downscaled data URIs: one file that renders anywhere, including sandboxed preview panels, email, and Slack; full-res originals stay in `shots/`). Exit non-zero on any failure.
 
 ### 4. Run until green — then LOOK at the screenshots
 

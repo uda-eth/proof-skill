@@ -186,7 +186,7 @@ async function main() {
     );
     process.exit(0);
   }
-  const { pass, fail } = writeReports({
+  const { pass, fail } = await writeReports({
     folder: FOLDER,
     base: BASE,
     title: 'user journeys', // ADAPT: the feature name

@@ -11,7 +11,7 @@
   viewports.mjs      # 320px → 1280px sanity sweep
   report.json        # machine-readable results
   REPORT.md          # TLDR verdict + before/after pairs + ✅/❌ per step — renders in the PR
-  REPORT.html        # self-contained interactive report: before/after sliders, filmstrips
+  REPORT.html        # interactive report, screenshots embedded — one file that opens anywhere
   shots/<journey>/   # numbered screenshots a reviewer can judge in 30 seconds
   shots-baseline/    # (optional) the same steps captured on the merge-base build
 ```

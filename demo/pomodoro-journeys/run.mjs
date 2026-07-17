@@ -174,7 +174,7 @@ async function main() {
     '03-slices-persist': 'A completed focus block earns a slice that survives a full reload',
     '04-reset-no-credit': 'Reset restores the full block — and never awards a slice for abandoned work',
   };
-  const { pass, fail } = writeReports({
+  const { pass, fail } = await writeReports({
     folder: FOLDER,
     base: BASE,
     title: 'wedge pomodoro user journeys',
