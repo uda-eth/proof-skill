@@ -1,0 +1,109 @@
+{
+  "base": "http://localhost:4173",
+  "pass": 17,
+  "fail": 0,
+  "results": [
+    {
+      "journey": "01-focus-cycle",
+      "step": "idle timer shows the full 25:00 focus block",
+      "status": "PASS",
+      "note": ""
+    },
+    {
+      "journey": "01-focus-cycle",
+      "step": "mode chip reads Focus",
+      "status": "PASS",
+      "note": ""
+    },
+    {
+      "journey": "01-focus-cycle",
+      "step": "primary control offers Start",
+      "status": "PASS",
+      "note": ""
+    },
+    {
+      "journey": "01-focus-cycle",
+      "step": "running: control flips to Pause",
+      "status": "PASS",
+      "note": ""
+    },
+    {
+      "journey": "01-focus-cycle",
+      "step": "running: wedge is draining (time below 00:04)",
+      "status": "PASS",
+      "note": "00:03"
+    },
+    {
+      "journey": "01-focus-cycle",
+      "step": "completion hands off to Break automatically",
+      "status": "PASS",
+      "note": ""
+    },
+    {
+      "journey": "01-focus-cycle",
+      "step": "break block queued at full 00:03",
+      "status": "PASS",
+      "note": ""
+    },
+    {
+      "journey": "02-pause-resume",
+      "step": "paused time does not move",
+      "status": "PASS",
+      "note": "00:58"
+    },
+    {
+      "journey": "02-pause-resume",
+      "step": "control offers Resume while paused",
+      "status": "PASS",
+      "note": ""
+    },
+    {
+      "journey": "02-pause-resume",
+      "step": "resume continues the countdown",
+      "status": "PASS",
+      "note": ""
+    },
+    {
+      "journey": "03-slices-persist",
+      "step": "empty state invites the first block",
+      "status": "PASS",
+      "note": ""
+    },
+    {
+      "journey": "03-slices-persist",
+      "step": "one slice earned after completing a block",
+      "status": "PASS",
+      "note": ""
+    },
+    {
+      "journey": "03-slices-persist",
+      "step": "the earned slice survives a reload",
+      "status": "PASS",
+      "note": ""
+    },
+    {
+      "journey": "03-slices-persist",
+      "step": "empty-state prompt stays gone",
+      "status": "PASS",
+      "note": ""
+    },
+    {
+      "journey": "04-reset-no-credit",
+      "step": "reset restores the full block",
+      "status": "PASS",
+      "note": ""
+    },
+    {
+      "journey": "04-reset-no-credit",
+      "step": "control returns to Start",
+      "status": "PASS",
+      "note": ""
+    },
+    {
+      "journey": "04-reset-no-credit",
+      "step": "no slice awarded for an abandoned block",
+      "status": "PASS",
+      "note": ""
+    }
+  ]
+}

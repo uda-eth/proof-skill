@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>wedge — focus timer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;800&family=Space+Grotesk:wght@400;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --porcelain: #eef2f6;
+    --ink: #16233b;
+    --ink-soft: #5b6a83;
+    --signal: #ff4f30;
+    --signal-deep: #e03a1c;
+    --sea: #2fa98c;
+    --sea-deep: #1f8a70;
+    --haze: #c7d2e0;
+    --card: #ffffff;
+    --wedge: var(--signal);
+    --wedge-deep: var(--signal-deep);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    background: var(--porcelain);
+    color: var(--ink);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100dvh;
+    padding: max(20px, env(safe-area-inset-top)) 20px 28px;
+  }
+  .frame { width: 100%; max-width: 430px; display: flex; flex-direction: column; align-items: center; flex: 1; }
+
+  header {
+    width: 100%;
+    display: flex; align-items: baseline; justify-content: space-between;
+    padding: 4px 2px 0;
+  }
+  .wordmark { font: 800 22px 'Archivo', sans-serif; letter-spacing: -0.03em; }
+  .wordmark::after { content: '.'; color: var(--wedge); }
+  .date { font-size: 13px; color: var(--ink-soft); }
+
+  .mode {
+    margin-top: clamp(18px, 6vh, 44px);
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--card);
+    border: 1px solid var(--haze);
+    border-radius: 999px;
+    padding: 7px 16px;
+    font-size: 13px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+  }
+  .mode-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--wedge); }
+
+  .dial-wrap { position: relative; margin-top: clamp(16px, 5vh, 36px); }
+  .dial {
+    --p: 100; /* percent of wedge remaining */
+    width: min(74vw, 300px);
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 50% 50%, var(--card) 58%, transparent 58.5%),
+      conic-gradient(var(--wedge) calc(var(--p) * 1%), #dde5ee calc(var(--p) * 1%));
+    box-shadow: 0 18px 40px -18px rgba(22, 35, 59, 0.35), inset 0 0 0 1px rgba(22,35,59,0.04);
+    display: grid; place-items: center;
+    position: relative;
+  }
+  /* the notch: a kitchen-timer pointer at 12 o'clock */
+  .dial::before {
+    content: '';
+    position: absolute; top: -6px; left: 50%; transform: translateX(-50%);
+    width: 4px; height: 16px; border-radius: 2px;
+    background: var(--ink);
+  }
+  .dial-inner { text-align: center; }
+  .time {
+    font: 800 clamp(56px, 17vw, 72px)/1 'Archivo', sans-serif;
+    letter-spacing: -0.04em;
+    font-variant-numeric: tabular-nums;
+  }
+  .hint { margin-top: 8px; font-size: 13px; color: var(--ink-soft); }
+
+  .controls { margin-top: clamp(20px, 6vh, 40px); display: flex; gap: 12px; width: 100%; max-width: 320px; }
+  button {
+    font: 600 16px 'Space Grotesk', sans-serif;
+    border: none; border-radius: 999px; padding: 15px 0;
+    cursor: pointer; flex: 1;
+    transition: transform 0.06s ease, background 0.15s ease;
+  }
+  button:active { transform: scale(0.98); }
+  button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+  .primary { background: var(--wedge); color: #fff; }
+  .primary:hover { background: var(--wedge-deep); }
+  .ghost { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--haze); flex: 0.62; }
+  .ghost:hover { box-shadow: inset 0 0 0 1.5px var(--ink-soft); }
+
+  .slices {
+    margin-top: auto; padding-top: 28px;
+    width: 100%; max-width: 320px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .slices-label { font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-soft); }
+  .slices-row { display: flex; gap: 8px; }
+  .slice {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: conic-gradient(var(--haze) 25%, transparent 25%);
+  }
+  .slice.done { background: conic-gradient(var(--signal) 25%, transparent 25%); }
+  .slice.done ~ .slice { opacity: 0.9; }
+  .slices-empty { font-size: 13px; color: var(--ink-soft); }
+
+  body.break { --wedge: var(--sea); --wedge-deep: var(--sea-deep); }
+
+  @media (prefers-reduced-motion: reduce) {
+    button { transition: none; }
+  }
+</style>
+</head>
+<body>
+  <div class="frame">
+    <header>
+      <div class="wordmark" data-testid="wordmark">wedge</div>
+      <div class="date" id="date"></div>
+    </header>
+
+    <div class="mode" data-testid="mode-chip">
+      <span class="mode-dot"></span><span id="mode-label">Focus</span>
+    </div>
+
+    <div class="dial-wrap">
+      <div class="dial" id="dial" data-testid="dial" role="timer" aria-live="off">
+        <div class="dial-inner">
+          <div class="time" id="time" data-testid="time">25:00</div>
+          <div class="hint" id="hint">twist to focus</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button class="ghost" id="reset" data-testid="reset">Reset</button>
+      <button class="primary" id="start" data-testid="start-pause">Start</button>
+    </div>
+
+    <div class="slices">
+      <div class="slices-label">Today's slices</div>
+      <div class="slices-row" id="slices" data-testid="slices"></div>
+      <div class="slices-empty" id="slices-empty" data-testid="slices-empty">Nothing earned yet — start a focus block.</div>
+    </div>
+  </div>
+
+<script>
+  // Durations are query-configurable so journeys can run a full cycle fast:
+  // ?focus=4&break=3 (seconds). Defaults: 25min focus / 5min break.
+  const q = new URLSearchParams(location.search);
+  const FOCUS = Math.max(1, parseInt(q.get('focus') || '1500', 10));
+  const BREAK = Math.max(1, parseInt(q.get('break') || '300', 10));
+  const DAY_KEY = 'wedge_slices_' + new Date().toISOString().slice(0, 10);
+
+  const el = {
+    dial: document.getElementById('dial'),
+    time: document.getElementById('time'),
+    hint: document.getElementById('hint'),
+    mode: document.getElementById('mode-label'),
+    start: document.getElementById('start'),
+    reset: document.getElementById('reset'),
+    slices: document.getElementById('slices'),
+    slicesEmpty: document.getElementById('slices-empty'),
+    date: document.getElementById('date'),
+  };
+  el.date.textContent = new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+
+  let mode = 'focus'; // focus | break
+  let total = FOCUS;
+  let remaining = FOCUS;
+  let running = false;
+  let tick = null;
+
+  const fmt = s => String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+
+  function paint() {
+    el.time.textContent = fmt(remaining);
+    el.dial.style.setProperty('--p', (remaining / total) * 100);
+    el.mode.textContent = mode === 'focus' ? 'Focus' : 'Break';
+    document.body.classList.toggle('break', mode === 'break');
+    el.start.textContent = running ? 'Pause' : remaining === total ? 'Start' : 'Resume';
+    el.hint.textContent = running
+      ? mode === 'focus' ? 'eyes on one thing' : 'stand up, look far away'
+      : remaining === total
+        ? mode === 'focus' ? 'twist to focus' : 'break is queued'
+        : 'paused';
+    document.title = fmt(remaining) + ' — wedge';
+    const n = parseInt(localStorage.getItem(DAY_KEY) || '0', 10);
+    el.slices.innerHTML = Array.from({ length: Math.max(n, 4) }, (_, i) =>
+      `<div class="slice${i < n ? ' done' : ''}" data-testid="slice${i < n ? '-done' : ''}"></div>`
+    ).join('');
+    el.slicesEmpty.style.display = n ? 'none' : '';
+  }
+
+  function switchMode(next) {
+    mode = next;
+    total = next === 'focus' ? FOCUS : BREAK;
+    remaining = total;
+    running = false;
+    clearInterval(tick);
+  }
+
+  function complete() {
+    if (mode === 'focus') {
+      const n = parseInt(localStorage.getItem(DAY_KEY) || '0', 10) + 1;
+      localStorage.setItem(DAY_KEY, String(n));
+      switchMode('break');
+    } else {
+      switchMode('focus');
+    }
+    paint();
+  }
+
+  el.start.addEventListener('click', () => {
+    running = !running;
+    clearInterval(tick);
+    if (running) {
+      tick = setInterval(() => {
+        remaining -= 1;
+        if (remaining <= 0) return complete();
+        paint();
+      }, 1000);
+    }
+    paint();
+  });
+
+  el.reset.addEventListener('click', () => {
+    switchMode(mode); // same mode, full time
+    paint();
+  });
+
+  paint();
+</script>
+</body>
+</html>
