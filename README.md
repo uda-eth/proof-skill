@@ -1,0 +1,64 @@
+# /proof
+
+**Prove a task is done before it merges.** A Claude Code skill that turns "the tests pass" into "here's a real user doing the thing, with receipts."
+
+`/proof` drives your actual app — real dev server, real database, real Chrome at phone size — through the user journeys your ticket promised, asserts every step, screenshots every state, and commits the evidence next to the PR:
+
+```
+<feature>-journeys/
+  run.mjs            # the journeys (Playwright, one per promise)
+  viewports.mjs      # 320px → 1280px sanity sweep
+  report.json        # machine-readable results
+  REPORT.md          # ✅/❌ per step, human-readable
+  shots/<journey>/   # numbered screenshots a reviewer can judge in 30 seconds
+```
+
+## Why
+
+Unit tests prove functions. Integration tests prove endpoints. **Neither proves the feature.** All of these have shipped with green checkmarks:
+
+- The dev server on the port was a stale checkout — every test "passed" against last week's code.
+- The feature rendered perfectly… underneath a first-run onboarding takeover nobody dismissed.
+- The empty state's call-to-action linked to a page that could never un-empty it.
+
+A journey suite with screenshots catches all three, because it checks the only thing that matters at review: *can a user actually do what the ticket promised?*
+
+## Install
+
+Copy the skill into your Claude Code skills directory:
+
+```bash
+# personal (all your projects)
+cp -R skills/proof ~/.claude/skills/proof
+
+# or per-repo (your whole team gets it on pull)
+cp -R skills/proof <your-repo>/.claude/skills/proof
+```
+
+Then, at review stage:
+
+```
+/proof
+```
+
+Claude derives the journeys from the ticket/diff, writes the runner from the bundled template, runs it until green, eyeballs the screenshots for the failure modes assertions can't see, sweeps five viewports, and leaves the proof pack in your working tree.
+
+## The rules the skill enforces
+
+1. **Never mock the network layer** — journeys hit the same server a user would.
+2. **Assert, then screenshot** — a screenshot without an assertion is decoration; an assertion without a screenshot is unreviewable.
+3. **Negative journeys are mandatory** for anything that filters, gates, hides, or permissions.
+4. **Deterministic reruns** — prefixed throwaway users, purged at the start of every run.
+5. **100% or not done** — a journey suite at 24/26 is a task at 0%.
+
+## What's in the box
+
+- [`skills/proof/SKILL.md`](skills/proof/SKILL.md) — the loop: derive journeys → verify the server is *your* code → runner → green → look at the shots → viewport sweep → ship the pack. Plus the gotchas that have burned real reviews.
+- [`skills/proof/references/run-template.mjs`](skills/proof/references/run-template.mjs) — the journey runner harness (rec/shot/report contract, API-staged users, DB helpers).
+- [`skills/proof/references/viewports-template.mjs`](skills/proof/references/viewports-template.mjs) — the five-viewport sweep.
+
+Works with any web app Playwright can drive. The templates assume Node + a Postgres `DATABASE_URL` for optional direct staging; both are trivially swappable.
+
+## License
+
+MIT
