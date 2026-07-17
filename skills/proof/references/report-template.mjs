@@ -4,9 +4,9 @@
 //   report.json  — machine-readable
 //   REPORT.md    — GitHub-renderable: TLDR verdict, before/after table, per-step detail
 //   REPORT.html  — self-contained interactive page (before/after sliders, filmstrips)
-// If a shots-baseline/ folder exists (the same steps captured on an earlier
-// build), shots pair into a before/after section automatically by journey +
-// filename. No dependencies, no CDN — the page works offline.
+// Before/after pairs appear automatically when shots-baseline/ exists (see
+// run.mjs --baseline): a baseline shot pairs with the branch shot of the same
+// journey + filename. No dependencies, no CDN — the page works offline.
 import fs from 'fs';
 import path from 'path';
 

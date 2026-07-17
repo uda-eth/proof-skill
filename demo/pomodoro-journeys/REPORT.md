@@ -11,7 +11,20 @@ Against `http://localhost:4173` · 2026-07-17 · [interactive report](REPORT.htm
 | [03-slices-persist](#03-slices-persist) | A completed focus block earns a slice that survives a full reload | ✅ 4/4 |
 | [04-reset-no-credit](#04-reset-no-credit) | Reset restores the full block — and never awards a slice for abandoned work | ✅ 3/3 |
 
-<img src="shots/01-focus-cycle/03-break-queued.png" width="180"> <img src="shots/02-pause-resume/02-resumed.png" width="180"> <img src="shots/03-slices-persist/02-slice-persists-after-reload.png" width="180"> <img src="shots/04-reset-no-credit/01-reset-full-block.png" width="180">
+### Before → after
+
+Same journey step on the merge-base build (left) and this branch (right).
+
+| step | before | after |
+| --- | --- | --- |
+| 01-focus-cycle<br>`idle-focus` | <img src="shots-baseline/01-focus-cycle/01-idle-focus.png" width="200"> | <img src="shots/01-focus-cycle/01-idle-focus.png" width="200"> |
+| 01-focus-cycle<br>`focus-running` | <img src="shots-baseline/01-focus-cycle/02-focus-running.png" width="200"> | <img src="shots/01-focus-cycle/02-focus-running.png" width="200"> |
+| 01-focus-cycle<br>`break-queued` | <img src="shots-baseline/01-focus-cycle/03-break-queued.png" width="200"> | <img src="shots/01-focus-cycle/03-break-queued.png" width="200"> |
+| 02-pause-resume<br>`paused` | <img src="shots-baseline/02-pause-resume/01-paused.png" width="200"> | <img src="shots/02-pause-resume/01-paused.png" width="200"> |
+| 02-pause-resume<br>`resumed` | <img src="shots-baseline/02-pause-resume/02-resumed.png" width="200"> | <img src="shots/02-pause-resume/02-resumed.png" width="200"> |
+| 03-slices-persist<br>`one-slice-earned` | <img src="shots-baseline/03-slices-persist/01-one-slice-earned.png" width="200"> | <img src="shots/03-slices-persist/01-one-slice-earned.png" width="200"> |
+| 03-slices-persist<br>`slice-persists-after-reload` | <img src="shots-baseline/03-slices-persist/02-slice-persists-after-reload.png" width="200"> | <img src="shots/03-slices-persist/02-slice-persists-after-reload.png" width="200"> |
+| 04-reset-no-credit<br>`reset-full-block` | <img src="shots-baseline/04-reset-no-credit/01-reset-full-block.png" width="200"> | <img src="shots/04-reset-no-credit/01-reset-full-block.png" width="200"> |
 
 ## 01-focus-cycle
 

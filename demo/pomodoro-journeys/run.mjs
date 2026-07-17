@@ -1,7 +1,13 @@
 // /proof demo — user journeys for the wedge pomodoro app (demo/pomodoro-app).
 // Self-contained: spawns a static server for the app, drives it in real Chrome
 // at phone size, asserts every step, screenshots every state, writes
-// report.json + REPORT.md + REPORT.html. Usage: node demo/pomodoro-journeys/run.mjs
+// report.json + REPORT.md + REPORT.html.
+//   node demo/pomodoro-journeys/run.mjs              # prove this build
+//   node demo/pomodoro-journeys/run.mjs --baseline   # capture the merge-base
+// The baseline run drives demo/pomodoro-app-baseline (the build the ticket
+// "auto break handoff + persistent daily slices" started from), capture-only,
+// into shots-baseline/. The next normal run pairs the shots into the
+// before/after section of both reports.
 import { chromium } from 'playwright';
 import { spawn } from 'child_process';
 import fs from 'fs';
@@ -11,8 +17,9 @@ import { writeReports } from './report.mjs';
 const PORT = process.env.PORT || '4173';
 const BASE = `http://localhost:${PORT}`;
 const FOLDER = path.dirname(new URL(import.meta.url).pathname);
-const APP_DIR = path.join(FOLDER, '..', 'pomodoro-app');
-const ROOT = path.join(FOLDER, 'shots');
+const BASELINE = process.argv.includes('--baseline');
+const APP_DIR = path.join(FOLDER, '..', BASELINE ? 'pomodoro-app-baseline' : 'pomodoro-app');
+const ROOT = path.join(FOLDER, BASELINE ? 'shots-baseline' : 'shots');
 const results = [];
 let browser;
 
@@ -38,6 +45,8 @@ async function freshSession(j) {
     viewport: { width: 390, height: 844 },
     deviceScaleFactor: 2,
   });
+  // Baseline drives a build the feature doesn't exist on — fail fast, not 30s.
+  if (BASELINE) ctx.setDefaultTimeout(3000);
   const page = await ctx.newPage();
   page.on('pageerror', e => rec(j, '(pageerror)', false, e.message.slice(0, 140)));
   return { ctx, page };
@@ -102,8 +111,8 @@ J('03-slices-persist', async () => {
   const j = '03-slices-persist';
   const s = await freshSession(j);
   await s.page.goto(`${BASE}/?focus=3&break=2`, { waitUntil: 'networkidle' });
-  // count()-guarded so a missing surface records a clean FAIL instead of
-  // throwing mid-journey.
+  // count()-guarded so the --baseline capture (no slices UI at all) records a
+  // clean FAIL and still reaches every shot instead of throwing mid-journey.
   const empty = s.page.locator('[data-testid="slices-empty"]');
   rec(
     j,
@@ -152,6 +161,12 @@ async function main() {
   await browser.close();
   server.kill();
 
+  if (BASELINE) {
+    console.log(
+      `\n(baseline) captured against ${BASE} — rerun without --baseline to regenerate reports with before/after pairs`
+    );
+    process.exit(0);
+  }
   const PROMISES = {
     '01-focus-cycle':
       'The core promise: a focus block runs, the wedge drains, and completion hands off to a break automatically',

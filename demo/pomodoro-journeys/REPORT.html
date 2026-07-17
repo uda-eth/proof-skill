@@ -106,7 +106,7 @@
     <div>
       <div class="eyebrow">Proof pack · user-journey evidence</div>
       <h1>wedge pomodoro user journeys</h1>
-      <p class="meta"><b>17/17</b> assertions · <b>4</b> journeys · against <code>http://localhost:4173</code> · 2026-07-17</p>
+      <p class="meta"><b>17/17</b> assertions · <b>4</b> journeys · <b>8</b> before/after pairs · against <code>http://localhost:4173</code> · 2026-07-17</p>
     </div>
     <div class="stamp ok">Proven</div>
   </header>
@@ -120,6 +120,81 @@
     <a href="#04-reset-no-credit"><span class="name">04-reset-no-credit</span><span class="promise">Reset restores the full block — and never awards a slice for abandoned work</span><span class="badge ok">3/3</span></a>
   </div>
 
+  <h2>Before → after<span class="h2note">drag the handle — left is the merge-base, right is this branch</span></h2>
+  <div class="pairs">
+    <div class="pair">
+      <div class="plabel"><span class="pj">01-focus-cycle</span><span class="ps">idle-focus</span></div>
+      <div class="cmp">
+        <img src="shots-baseline/01-focus-cycle/01-idle-focus.png" alt="before — idle-focus" loading="lazy">
+        <div class="after"><img src="shots/01-focus-cycle/01-idle-focus.png" alt="after — idle-focus" loading="lazy"></div>
+        <span class="tag b">before</span><span class="tag a">after</span>
+        <div class="divider"></div><div class="grip">◂▸</div>
+      </div>
+    </div>
+    <div class="pair">
+      <div class="plabel"><span class="pj">01-focus-cycle</span><span class="ps">focus-running</span></div>
+      <div class="cmp">
+        <img src="shots-baseline/01-focus-cycle/02-focus-running.png" alt="before — focus-running" loading="lazy">
+        <div class="after"><img src="shots/01-focus-cycle/02-focus-running.png" alt="after — focus-running" loading="lazy"></div>
+        <span class="tag b">before</span><span class="tag a">after</span>
+        <div class="divider"></div><div class="grip">◂▸</div>
+      </div>
+    </div>
+    <div class="pair">
+      <div class="plabel"><span class="pj">01-focus-cycle</span><span class="ps">break-queued</span></div>
+      <div class="cmp">
+        <img src="shots-baseline/01-focus-cycle/03-break-queued.png" alt="before — break-queued" loading="lazy">
+        <div class="after"><img src="shots/01-focus-cycle/03-break-queued.png" alt="after — break-queued" loading="lazy"></div>
+        <span class="tag b">before</span><span class="tag a">after</span>
+        <div class="divider"></div><div class="grip">◂▸</div>
+      </div>
+    </div>
+    <div class="pair">
+      <div class="plabel"><span class="pj">02-pause-resume</span><span class="ps">paused</span></div>
+      <div class="cmp">
+        <img src="shots-baseline/02-pause-resume/01-paused.png" alt="before — paused" loading="lazy">
+        <div class="after"><img src="shots/02-pause-resume/01-paused.png" alt="after — paused" loading="lazy"></div>
+        <span class="tag b">before</span><span class="tag a">after</span>
+        <div class="divider"></div><div class="grip">◂▸</div>
+      </div>
+    </div>
+    <div class="pair">
+      <div class="plabel"><span class="pj">02-pause-resume</span><span class="ps">resumed</span></div>
+      <div class="cmp">
+        <img src="shots-baseline/02-pause-resume/02-resumed.png" alt="before — resumed" loading="lazy">
+        <div class="after"><img src="shots/02-pause-resume/02-resumed.png" alt="after — resumed" loading="lazy"></div>
+        <span class="tag b">before</span><span class="tag a">after</span>
+        <div class="divider"></div><div class="grip">◂▸</div>
+      </div>
+    </div>
+    <div class="pair">
+      <div class="plabel"><span class="pj">03-slices-persist</span><span class="ps">one-slice-earned</span></div>
+      <div class="cmp">
+        <img src="shots-baseline/03-slices-persist/01-one-slice-earned.png" alt="before — one-slice-earned" loading="lazy">
+        <div class="after"><img src="shots/03-slices-persist/01-one-slice-earned.png" alt="after — one-slice-earned" loading="lazy"></div>
+        <span class="tag b">before</span><span class="tag a">after</span>
+        <div class="divider"></div><div class="grip">◂▸</div>
+      </div>
+    </div>
+    <div class="pair">
+      <div class="plabel"><span class="pj">03-slices-persist</span><span class="ps">slice-persists-after-reload</span></div>
+      <div class="cmp">
+        <img src="shots-baseline/03-slices-persist/02-slice-persists-after-reload.png" alt="before — slice-persists-after-reload" loading="lazy">
+        <div class="after"><img src="shots/03-slices-persist/02-slice-persists-after-reload.png" alt="after — slice-persists-after-reload" loading="lazy"></div>
+        <span class="tag b">before</span><span class="tag a">after</span>
+        <div class="divider"></div><div class="grip">◂▸</div>
+      </div>
+    </div>
+    <div class="pair">
+      <div class="plabel"><span class="pj">04-reset-no-credit</span><span class="ps">reset-full-block</span></div>
+      <div class="cmp">
+        <img src="shots-baseline/04-reset-no-credit/01-reset-full-block.png" alt="before — reset-full-block" loading="lazy">
+        <div class="after"><img src="shots/04-reset-no-credit/01-reset-full-block.png" alt="after — reset-full-block" loading="lazy"></div>
+        <span class="tag b">before</span><span class="tag a">after</span>
+        <div class="divider"></div><div class="grip">◂▸</div>
+      </div>
+    </div>
+  </div>
 
   <h2>Journeys<span class="h2note">every line is an assertion that ran against the live app</span></h2>
   <section class="journey" id="01-focus-cycle">
@@ -185,7 +260,7 @@
     <a href="shots/viewports/768x1024.png" target="_blank"><img src="shots/viewports/768x1024.png" alt="768x1024" loading="lazy"><span class="cap">768x1024</span></a>
   </div>
 
-  <footer>Generated by the /proof journey runner — regenerate with <code>node run.mjs</code>. Screenshots are the exact states the assertions saw.</footer>
+  <footer>Generated by the /proof journey runner — regenerate with <code>node run.mjs</code>, baseline with <code>node run.mjs --baseline</code>. Screenshots are the exact states the assertions saw.</footer>
 </div>
 <script>
   document.querySelectorAll('.cmp').forEach(c => {

@@ -46,7 +46,7 @@ Copy `references/run-template.mjs` (as `run.mjs`) and `references/report-templat
 - **`rec(journey, step, ok, note)` for every step** — every claim in the report is an assertion that ran, pass or fail, never prose.
 - **`shot(page, journey, n, name)` after each user-visible state** — numbered screenshots into `shots/<journey>/`.
 - **A `PROMISES` map** — one sentence per journey, quoted from the ticket. It headlines the TLDR in both reports, so a reviewer reads *what* was proven before *how*.
-- **The report writer** (`report.mjs`) — one call writes three views of the same results: `report.json` (machine), `REPORT.md` (GitHub-renderable: verdict + promises table + ✅/❌ per step, screenshots inline), and `REPORT.html` (self-contained interactive page — verdict stamp, assertion ledger, per-journey filmstrips, viewport strip; no dependencies, opens offline). Exit non-zero on any failure.
+- **The report writer** (`report.mjs`) — one call writes three views of the same results: `report.json` (machine), `REPORT.md` (GitHub-renderable: verdict + promises table + before/after pairs + ✅/❌ per step, screenshots inline), and `REPORT.html` (self-contained interactive page — before/after drag-sliders, per-journey filmstrips, viewport strip; no dependencies, opens offline). Exit non-zero on any failure.
 
 ### 4. Run until green — then LOOK at the screenshots
 
@@ -62,7 +62,20 @@ One extra script, five sizes, four checks each: the new surface is visible, insi
 
 Recommended matrix: `320×568` (small phone), `390×844` (default), `430×932` (large phone), `768×1024` (tablet), `1280×800` (desktop). See `references/viewports-template.mjs`.
 
-### 6. Ship the proof pack
+### 6. Capture the before (optional — one extra run)
+
+If the change alters an existing surface — and *especially* for a bugfix — capture the merge-base build so the reports carry before/after evidence:
+
+```bash
+git worktree add /tmp/proof-base $(git merge-base HEAD origin/main)
+# boot that checkout on a second port, then:
+PORT=5002 node <feature>-journeys/run.mjs --baseline
+node <feature>-journeys/run.mjs   # regenerate reports — pairs appear automatically
+```
+
+Baseline runs are capture-only: same journeys, same shot names, but shots land in `shots-baseline/`, assertions don't gate (the feature isn't supposed to exist back there), and no reports are written. The report writer pairs shots by journey + filename: REPORT.md gets a side-by-side table, REPORT.html gets drag-sliders. For a bugfix, the before-shot *showing the bug* is the strongest evidence a pack can carry. Write journeys with `count()`-guarded lookups (see the demo) so a baseline run reaches every `shot()` instead of throwing on a surface that doesn't exist yet.
+
+### 7. Ship the proof pack
 
 Commit the whole folder with the PR:
 
@@ -72,9 +85,10 @@ Commit the whole folder with the PR:
   report.mjs         # the report writer (verbatim from the template)
   viewports.mjs      # the size sweep
   report.json        # machine-readable results
-  REPORT.md          # TLDR verdict + ✅/❌ per step — renders in the PR
-  REPORT.html        # interactive: verdict stamp, ledger, filmstrips — open locally
+  REPORT.md          # TLDR verdict + before/after + ✅/❌ per step — renders in the PR
+  REPORT.html        # interactive: sliders, filmstrips — open locally
   shots/<journey>/   # numbered screenshots
+  shots-baseline/    # (optional) merge-base captures for before/after pairs
   shots/viewports/   # one per size
 ```
 
@@ -83,7 +97,7 @@ Paste REPORT.md's TLDR block (verdict line + promises table) into the PR descrip
 ## Rules
 
 1. **Never mock the network layer.** The runner hits the same server a user would. If the app needs external services you can't run, stage their *effects* in the DB — don't stub the app's own API.
-2. **Assert, then screenshot.** A screenshot without an assertion is decoration; an assertion without a screenshot is unreviewable.
+2. **Assert, then screenshot.** A screenshot without an assertion is decoration; an assertion without a screenshot is unreviewable. (Baseline shots are the one sanctioned exception: capture-only by design, each one exists to pair with an asserted after-shot.)
 3. **Negative journeys are mandatory** for anything that filters, gates, hides, or permissions.
 4. **Deterministic reruns.** Prefix + purge test users; never depend on data an earlier run left behind; pin theme/locale via `localStorage` init scripts so screenshots are stable.
 5. **The suite exits non-zero on any failure** — wire it into CI or a pre-merge checklist if you want, but at minimum run it at review and commit the green report.
