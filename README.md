@@ -7,9 +7,11 @@
 ```
 <feature>-journeys/
   run.mjs            # the journeys (Playwright, one per promise)
+  report.mjs         # the report writer (copied verbatim from the template)
   viewports.mjs      # 320px → 1280px sanity sweep
   report.json        # machine-readable results
-  REPORT.md          # ✅/❌ per step, human-readable
+  REPORT.md          # TLDR verdict + ✅/❌ per step — renders in the PR
+  REPORT.html        # self-contained interactive report: verdict stamp, assertion ledger, filmstrips
   shots/<journey>/   # numbered screenshots a reviewer can judge in 30 seconds
 ```
 
@@ -57,16 +59,17 @@ Claude derives the journeys from the ticket/diff, writes the runner from the bun
 
 ```bash
 npm i playwright && npx playwright install chromium
-node demo/pomodoro-journeys/run.mjs        # 17 assertions + shots/
+node demo/pomodoro-journeys/run.mjs        # 17 assertions + shots/ + reports
 node demo/pomodoro-journeys/viewports.mjs  # 320px → 1280px sweep
 ```
 
-Open `demo/pomodoro-journeys/REPORT.md` and `shots/` to see what lands in a PR.
+Open `demo/pomodoro-journeys/REPORT.md` to see what renders in a PR, and `REPORT.html` in a browser for the interactive version.
 
 ## What's in the box
 
 - [`skills/proof/SKILL.md`](skills/proof/SKILL.md) — the loop: derive journeys → verify the server is *your* code → runner → green → look at the shots → viewport sweep → ship the pack. Plus the gotchas that have burned real reviews.
-- [`skills/proof/references/run-template.mjs`](skills/proof/references/run-template.mjs) — the journey runner harness (rec/shot/report contract, API-staged users, DB helpers).
+- [`skills/proof/references/run-template.mjs`](skills/proof/references/run-template.mjs) — the journey runner harness (rec/shot contract, API-staged users, DB helpers).
+- [`skills/proof/references/report-template.mjs`](skills/proof/references/report-template.mjs) — the report writer: one results array → `report.json` + a TLDR-first `REPORT.md` + a self-contained interactive `REPORT.html`. Zero dependencies.
 - [`skills/proof/references/viewports-template.mjs`](skills/proof/references/viewports-template.mjs) — the five-viewport sweep.
 
 Works with any web app Playwright can drive. The templates assume Node + a Postgres `DATABASE_URL` for optional direct staging; both are trivially swappable.

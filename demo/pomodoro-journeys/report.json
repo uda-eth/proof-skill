@@ -1,7 +1,36 @@
 {
+  "title": "wedge pomodoro user journeys",
   "base": "http://localhost:4173",
+  "generated": "2026-07-17",
+  "verdict": "PROVEN",
   "pass": 17,
   "fail": 0,
+  "journeys": [
+    {
+      "name": "01-focus-cycle",
+      "promise": "The core promise: a focus block runs, the wedge drains, and completion hands off to a break automatically",
+      "pass": 7,
+      "fail": 0
+    },
+    {
+      "name": "02-pause-resume",
+      "promise": "Pause freezes the wedge exactly where it is; Resume continues from there",
+      "pass": 3,
+      "fail": 0
+    },
+    {
+      "name": "03-slices-persist",
+      "promise": "A completed focus block earns a slice that survives a full reload",
+      "pass": 4,
+      "fail": 0
+    },
+    {
+      "name": "04-reset-no-credit",
+      "promise": "Reset restores the full block — and never awards a slice for abandoned work",
+      "pass": 3,
+      "fail": 0
+    }
+  ],
   "results": [
     {
       "journey": "01-focus-cycle",

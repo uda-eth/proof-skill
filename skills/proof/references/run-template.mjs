@@ -1,16 +1,19 @@
 // /proof journey runner template.
-// Copy into <feature>-journeys/run.mjs at your repo root and adapt:
+// Copy into <feature>-journeys/ at your repo root as run.mjs (and copy
+// report-template.mjs next to it as report.mjs). Adapt:
 //  - BASE/PORT for your dev server
 //  - freshUser() for your app's register/onboarding flow
-//  - the JOURNEYS at the bottom for your feature's promises
+//  - the JOURNEYS + PROMISES at the bottom for your feature's promises
 //
 // Contract: every step is rec()'d (assertion), every user-visible state is
-// shot() (screenshot), report.json + REPORT.md are written, exit is non-zero
-// on any failure. Usage: node <feature>-journeys/run.mjs [journey1,journey2]
+// shot() (screenshot), report.json + REPORT.md + REPORT.html are written,
+// exit is non-zero on any failure.
+// Usage: node <feature>-journeys/run.mjs [journey1,journey2]
 import { chromium } from 'playwright';
 import { execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
+import { writeReports } from './report.mjs';
 
 const PORT = process.env.PORT || '5001';
 const BASE = `http://localhost:${PORT}`;
@@ -91,6 +94,14 @@ async function freshUser(j, name) {
 const JOURNEYS = {};
 const J = (name, fn) => (JOURNEYS[name] = fn);
 
+// Quote each journey's promise from the ticket — it headlines the TLDR table
+// in both reports, so a reviewer reads WHAT was proven before HOW.
+const PROMISES = {
+  '01-happy-path': 'ADAPT: the core promise, in the ticket’s words',
+  '02-negative': 'ADAPT: what must NOT happen',
+  '03-persistence': 'ADAPT: what survives a reload/re-login',
+};
+
 J('01-happy-path', async () => {
   const j = '01-happy-path';
   const a = await freshUser(j, 'Maya Brooks');
@@ -152,23 +163,14 @@ async function main() {
   }
   await browser.close();
 
-  const pass = results.filter(r => r.status === 'PASS').length;
-  const fail = results.filter(r => r.status === 'FAIL').length;
-  fs.writeFileSync(
-    path.join(FOLDER, 'report.json'),
-    JSON.stringify({ base: BASE, pass, fail, results }, null, 2)
-  );
-  const byJourney = {};
-  for (const r of results) (byJourney[r.journey] ||= []).push(r);
-  let md = `# Proof — user journeys\n\n${pass} passed / ${fail} failed against ${BASE}\n\n`;
-  for (const [name, rows] of Object.entries(byJourney)) {
-    md += `## ${name}\n\n`;
-    for (const r of rows)
-      md += `- ${r.status === 'PASS' ? '✅' : '❌'} ${r.step}${r.note ? ` — ${r.note}` : ''}\n`;
-    md += '\n';
-  }
-  fs.writeFileSync(path.join(FOLDER, 'REPORT.md'), md);
-  console.log(`\n${pass} passed / ${fail} failed — REPORT.md written`);
+  const { pass, fail } = writeReports({
+    folder: FOLDER,
+    base: BASE,
+    title: 'user journeys', // ADAPT: the feature name
+    results,
+    promises: PROMISES,
+  });
+  console.log(`\n${pass} passed / ${fail} failed — REPORT.md + REPORT.html written`);
   process.exit(fail ? 1 : 0);
 }
 main();

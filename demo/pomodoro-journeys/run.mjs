@@ -1,11 +1,12 @@
 // /proof demo — user journeys for the wedge pomodoro app (demo/pomodoro-app).
 // Self-contained: spawns a static server for the app, drives it in real Chrome
 // at phone size, asserts every step, screenshots every state, writes
-// report.json + REPORT.md. Usage: node demo/pomodoro-journeys/run.mjs
+// report.json + REPORT.md + REPORT.html. Usage: node demo/pomodoro-journeys/run.mjs
 import { chromium } from 'playwright';
 import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
+import { writeReports } from './report.mjs';
 
 const PORT = process.env.PORT || '4173';
 const BASE = `http://localhost:${PORT}`;
@@ -101,10 +102,13 @@ J('03-slices-persist', async () => {
   const j = '03-slices-persist';
   const s = await freshSession(j);
   await s.page.goto(`${BASE}/?focus=3&break=2`, { waitUntil: 'networkidle' });
+  // count()-guarded so a missing surface records a clean FAIL instead of
+  // throwing mid-journey.
+  const empty = s.page.locator('[data-testid="slices-empty"]');
   rec(
     j,
     'empty state invites the first block',
-    (await s.page.locator('[data-testid="slices-empty"]').innerText()).includes('start a focus block')
+    (await empty.count()) === 1 && (await empty.innerText()).includes('start a focus block')
   );
   await s.page.locator('[data-testid="start-pause"]').click();
   await s.page.waitForTimeout(4200); // complete the 3s focus block
@@ -148,30 +152,21 @@ async function main() {
   await browser.close();
   server.kill();
 
-  const pass = results.filter(r => r.status === 'PASS').length;
-  const fail = results.filter(r => r.status === 'FAIL').length;
-  fs.writeFileSync(
-    path.join(FOLDER, 'report.json'),
-    JSON.stringify({ base: BASE, pass, fail, results }, null, 2)
-  );
-  const byJourney = {};
-  for (const r of results) (byJourney[r.journey] ||= []).push(r);
-  const TABLE = {
+  const PROMISES = {
     '01-focus-cycle':
       'The core promise: a focus block runs, the wedge drains, and completion hands off to a break automatically',
     '02-pause-resume': 'Pause freezes the wedge exactly where it is; Resume continues from there',
     '03-slices-persist': 'A completed focus block earns a slice that survives a full reload',
     '04-reset-no-credit': 'Reset restores the full block — and never awards a slice for abandoned work',
   };
-  let md = `# Proof — wedge pomodoro user journeys\n\n${pass} passed / ${fail} failed against ${BASE}\n\n`;
-  for (const [name, rows] of Object.entries(byJourney)) {
-    md += `## ${name}\n\n${TABLE[name] || ''}\n\n`;
-    for (const r of rows)
-      md += `- ${r.status === 'PASS' ? '✅' : '❌'} ${r.step}${r.note ? ` — ${r.note}` : ''}\n`;
-    md += '\n';
-  }
-  fs.writeFileSync(path.join(FOLDER, 'REPORT.md'), md);
-  console.log(`\n${pass} passed / ${fail} failed — REPORT.md written`);
+  const { pass, fail } = writeReports({
+    folder: FOLDER,
+    base: BASE,
+    title: 'wedge pomodoro user journeys',
+    results,
+    promises: PROMISES,
+  });
+  console.log(`\n${pass} passed / ${fail} failed — REPORT.md + REPORT.html written`);
   process.exit(fail ? 1 : 0);
 }
 main();

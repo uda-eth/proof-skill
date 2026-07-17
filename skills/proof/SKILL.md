@@ -38,14 +38,15 @@ A stale server from another checkout will happily serve old code and every journ
 
 ### 3. Write the runner from the template
 
-Copy `references/run-template.mjs` into a `<feature>-journeys/` folder at the repo root and adapt it. The template gives you the harness contract:
+Copy `references/run-template.mjs` (as `run.mjs`) and `references/report-template.mjs` (as `report.mjs`, verbatim — no edits needed) into a `<feature>-journeys/` folder at the repo root and adapt the runner. The template gives you the harness contract:
 
 - **Real Chrome, headless, phone viewport** (390×844, dpr 2) — review-stage proof looks like the product, not a 1920px dev window.
 - **Fresh throwaway users per journey** with a greppable email prefix (e.g. `fpj_…@t.com`), purged at the start of every run so reruns are deterministic.
 - **Stage state through APIs/DB, drive UI only for what the user would do.** Registration flags, onboarding, seed posts — set them up via requests or SQL so each journey spends its time on the promise, not on typing into forms (except the journey whose promise IS the form).
 - **`rec(journey, step, ok, note)` for every step** — every claim in the report is an assertion that ran, pass or fail, never prose.
 - **`shot(page, journey, n, name)` after each user-visible state** — numbered screenshots into `shots/<journey>/`.
-- **A report writer** — `report.json` (machine) + `REPORT.md` (human, one section per journey with ✅/❌ per step). Exit non-zero on any failure.
+- **A `PROMISES` map** — one sentence per journey, quoted from the ticket. It headlines the TLDR in both reports, so a reviewer reads *what* was proven before *how*.
+- **The report writer** (`report.mjs`) — one call writes three views of the same results: `report.json` (machine), `REPORT.md` (GitHub-renderable: verdict + promises table + ✅/❌ per step, screenshots inline), and `REPORT.html` (self-contained interactive page — verdict stamp, assertion ledger, per-journey filmstrips, viewport strip; no dependencies, opens offline). Exit non-zero on any failure.
 
 ### 4. Run until green — then LOOK at the screenshots
 
@@ -68,14 +69,16 @@ Commit the whole folder with the PR:
 ```
 <feature>-journeys/
   run.mjs            # the journeys
+  report.mjs         # the report writer (verbatim from the template)
   viewports.mjs      # the size sweep
   report.json        # machine-readable results
-  REPORT.md          # human-readable: N passed / M failed + per-step detail
+  REPORT.md          # TLDR verdict + ✅/❌ per step — renders in the PR
+  REPORT.html        # interactive: verdict stamp, ledger, filmstrips — open locally
   shots/<journey>/   # numbered screenshots
   shots/viewports/   # one per size
 ```
 
-Paste the journey list + assertion count into the PR description. The reviewer should be able to judge the feature from the proof pack without checking out the branch.
+Paste REPORT.md's TLDR block (verdict line + promises table) into the PR description. The reviewer should be able to judge the feature from the proof pack without checking out the branch.
 
 ## Rules
 

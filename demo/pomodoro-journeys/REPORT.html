@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Proof — wedge pomodoro user journeys</title>
+<style>
+  :root {
+    --bg: #f2f3f5; --card: #fcfcfc; --ink: #171b21; --muted: #636b76; --line: #d8dce1;
+    --dots: #b9bfc7; --ok: #187a48; --bad: #c03530; --bad-bg: #fbeae9;
+    --mono: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #101317; --card: #181c22; --ink: #e7eaee; --muted: #8b939e; --line: #2b313a;
+      --dots: #3d444e; --ok: #46b981; --bad: #e0645f; --bad-bg: #2c1615;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #f2f3f5; --card: #fcfcfc; --ink: #171b21; --muted: #636b76; --line: #d8dce1;
+    --dots: #b9bfc7; --ok: #187a48; --bad: #c03530; --bad-bg: #fbeae9;
+  }
+  :root[data-theme="dark"] {
+    --bg: #101317; --card: #181c22; --ink: #e7eaee; --muted: #8b939e; --line: #2b313a;
+    --dots: #3d444e; --ok: #46b981; --bad: #e0645f; --bad-bg: #2c1615;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font: 14.5px/1.55 var(--sans); background: var(--bg); color: var(--ink); padding: 44px 22px 80px; }
+  .wrap { max-width: 1120px; margin: 0 auto; }
+  a { color: inherit; }
+  a:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+  .mast { display: flex; justify-content: space-between; align-items: flex-start; gap: 28px; flex-wrap: wrap; }
+  .eyebrow { font: 600 11px var(--mono); letter-spacing: 0.24em; text-transform: uppercase; color: var(--muted); }
+  h1 { font: 700 clamp(23px, 3.6vw, 33px)/1.15 var(--mono); letter-spacing: -0.03em; margin: 10px 0 10px; text-wrap: balance; }
+  .meta { color: var(--muted); font-size: 13px; }
+  .meta code, .meta b { font: 600 12px var(--mono); color: var(--ink); letter-spacing: 0; }
+  .stamp {
+    flex: none; margin-top: 6px;
+    font: 800 14px/1 var(--mono); letter-spacing: 0.22em; text-transform: uppercase; text-indent: 0.22em;
+    padding: 13px 16px; border: 2px solid currentColor; border-radius: 4px;
+    outline: 1px solid currentColor; outline-offset: 3px;
+    transform: rotate(-4deg);
+  }
+  .stamp.ok { color: var(--ok); } .stamp.bad { color: var(--bad); }
+
+  h2 { display: flex; align-items: baseline; gap: 14px; font: 700 12px var(--mono); letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); margin: 54px 0 18px; }
+  h2::after { content: ''; flex: 1; border-top: 1px solid var(--line); align-self: center; }
+  h2 .h2note { font: 400 12px var(--sans); letter-spacing: 0; text-transform: none; }
+
+  .failbox { border: 1px solid var(--bad); background: var(--bad-bg); border-radius: 8px; padding: 14px 18px; margin-top: 26px; }
+  .failbox strong { font: 700 12px var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--bad); }
+  .failbox li { margin: 6px 0 0 18px; font-size: 13.5px; }
+
+  .summary { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--card); }
+  .summary a { display: grid; grid-template-columns: 200px 1fr auto; gap: 18px; align-items: baseline; padding: 13px 18px; text-decoration: none; border-top: 1px solid var(--line); }
+  .summary a:first-child { border-top: 0; }
+  .summary a:hover { background: var(--bg); }
+  .summary .name { font: 600 13px var(--mono); }
+  .summary .promise { color: var(--muted); font-size: 13.5px; }
+  .badge { align-self: center; font: 700 11px var(--mono); letter-spacing: 0.05em; padding: 3px 8px; border: 1px solid currentColor; border-radius: 3px; white-space: nowrap; }
+  .badge.ok { color: var(--ok); } .badge.bad { color: var(--bad); }
+  .badge.ok::before { content: '✓ '; } .badge.bad::before { content: '✗ '; }
+
+  .pairs { display: grid; grid-template-columns: repeat(auto-fill, minmax(212px, 1fr)); gap: 14px; }
+  .pair { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--card); }
+  .plabel { padding: 10px 13px 9px; border-bottom: 1px solid var(--line); }
+  .plabel .pj { display: block; font: 500 10px var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+  .plabel .ps { font: 600 12.5px var(--mono); }
+  .cmp { position: relative; --x: 50%; touch-action: none; cursor: ew-resize; overflow: hidden; }
+  .cmp img { display: block; width: 100%; user-select: none; -webkit-user-drag: none; pointer-events: none; }
+  .cmp .after { position: absolute; inset: 0; clip-path: inset(0 0 0 var(--x)); }
+  .cmp .divider { position: absolute; top: 0; bottom: 0; left: var(--x); width: 1.5px; background: #fff; box-shadow: 0 0 0 0.5px rgba(10, 12, 16, 0.4); }
+  .cmp .grip { position: absolute; top: 50%; left: var(--x); transform: translate(-50%, -50%); width: 28px; height: 28px; border-radius: 50%; background: var(--ink); color: var(--bg); display: grid; place-items: center; font: 700 10px var(--mono); letter-spacing: -0.05em; box-shadow: 0 1px 5px rgba(10, 12, 16, 0.35); }
+  .cmp .tag { position: absolute; top: 8px; font: 700 9px var(--mono); letter-spacing: 0.14em; text-transform: uppercase; padding: 3px 7px; border-radius: 3px; background: rgba(15, 18, 22, 0.66); color: #fff; }
+  .cmp .tag.b { left: 8px; } .cmp .tag.a { right: 8px; }
+
+  .journey { border: 1px solid var(--line); border-radius: 8px; background: var(--card); padding: 20px 22px; margin-bottom: 16px; }
+  .jhead { display: flex; align-items: center; gap: 12px; }
+  .jhead h3 { font: 700 15px var(--mono); letter-spacing: -0.01em; }
+  .jpromise { color: var(--muted); font-size: 13.5px; margin: 5px 0 14px; max-width: 72ch; }
+  .jbody { display: grid; grid-template-columns: minmax(300px, 440px) 1fr; gap: 30px; align-items: start; }
+  @media (max-width: 780px) { .jbody { grid-template-columns: 1fr; } }
+  .steps { list-style: none; }
+  .steps li { display: flex; align-items: baseline; gap: 12px; padding: 6px 0; font-size: 13.5px; }
+  .steps li + li { border-top: 1px dotted var(--dots); }
+  .steps .st { flex: none; width: 40px; font: 700 10px var(--mono); letter-spacing: 0.1em; color: var(--ok); }
+  .steps li.no .st { color: var(--bad); }
+  .steps .note { color: var(--muted); }
+
+  .strip { display: flex; gap: 12px; overflow-x: auto; padding: 2px 2px 6px; }
+  .strip a { flex: none; text-decoration: none; }
+  .strip img { height: 236px; display: block; border: 1px solid var(--line); border-radius: 6px; }
+  .strip .cap { display: block; font: 500 10.5px var(--mono); letter-spacing: 0.04em; color: var(--muted); text-align: center; padding-top: 6px; }
+
+  footer { margin-top: 56px; color: var(--muted); font-size: 12.5px; max-width: 82ch; }
+  footer code { font: 600 11.5px var(--mono); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; background: var(--card); }
+  @media (max-width: 640px) { .summary a { grid-template-columns: 1fr auto; } .summary .promise { display: none; } }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="mast">
+    <div>
+      <div class="eyebrow">Proof pack · user-journey evidence</div>
+      <h1>wedge pomodoro user journeys</h1>
+      <p class="meta"><b>17/17</b> assertions · <b>4</b> journeys · against <code>http://localhost:4173</code> · 2026-07-17</p>
+    </div>
+    <div class="stamp ok">Proven</div>
+  </header>
+  
+
+  <h2>TL;DR</h2>
+  <div class="summary">
+    <a href="#01-focus-cycle"><span class="name">01-focus-cycle</span><span class="promise">The core promise: a focus block runs, the wedge drains, and completion hands off to a break automatically</span><span class="badge ok">7/7</span></a>
+    <a href="#02-pause-resume"><span class="name">02-pause-resume</span><span class="promise">Pause freezes the wedge exactly where it is; Resume continues from there</span><span class="badge ok">3/3</span></a>
+    <a href="#03-slices-persist"><span class="name">03-slices-persist</span><span class="promise">A completed focus block earns a slice that survives a full reload</span><span class="badge ok">4/4</span></a>
+    <a href="#04-reset-no-credit"><span class="name">04-reset-no-credit</span><span class="promise">Reset restores the full block — and never awards a slice for abandoned work</span><span class="badge ok">3/3</span></a>
+  </div>
+
+
+  <h2>Journeys<span class="h2note">every line is an assertion that ran against the live app</span></h2>
+  <section class="journey" id="01-focus-cycle">
+    <div class="jhead"><h3>01-focus-cycle</h3><span class="badge ok">7/7</span></div>
+    <p class="jpromise">The core promise: a focus block runs, the wedge drains, and completion hands off to a break automatically</p>
+    <div class="jbody">
+      <ul class="steps">
+        <li class="yes"><span class="st">PASS</span><span>idle timer shows the full 25:00 focus block</span></li>
+        <li class="yes"><span class="st">PASS</span><span>mode chip reads Focus</span></li>
+        <li class="yes"><span class="st">PASS</span><span>primary control offers Start</span></li>
+        <li class="yes"><span class="st">PASS</span><span>running: control flips to Pause</span></li>
+        <li class="yes"><span class="st">PASS</span><span>running: wedge is draining (time below 00:04) <span class="note">— 00:03</span></span></li>
+        <li class="yes"><span class="st">PASS</span><span>completion hands off to Break automatically</span></li>
+        <li class="yes"><span class="st">PASS</span><span>break block queued at full 00:03</span></li>
+      </ul>
+      <div class="strip"><a href="shots/01-focus-cycle/01-idle-focus.png" target="_blank"><img src="shots/01-focus-cycle/01-idle-focus.png" alt="idle-focus" loading="lazy"><span class="cap">idle-focus</span></a><a href="shots/01-focus-cycle/02-focus-running.png" target="_blank"><img src="shots/01-focus-cycle/02-focus-running.png" alt="focus-running" loading="lazy"><span class="cap">focus-running</span></a><a href="shots/01-focus-cycle/03-break-queued.png" target="_blank"><img src="shots/01-focus-cycle/03-break-queued.png" alt="break-queued" loading="lazy"><span class="cap">break-queued</span></a></div>
+    </div>
+  </section>
+  <section class="journey" id="02-pause-resume">
+    <div class="jhead"><h3>02-pause-resume</h3><span class="badge ok">3/3</span></div>
+    <p class="jpromise">Pause freezes the wedge exactly where it is; Resume continues from there</p>
+    <div class="jbody">
+      <ul class="steps">
+        <li class="yes"><span class="st">PASS</span><span>paused time does not move <span class="note">— 00:58</span></span></li>
+        <li class="yes"><span class="st">PASS</span><span>control offers Resume while paused</span></li>
+        <li class="yes"><span class="st">PASS</span><span>resume continues the countdown</span></li>
+      </ul>
+      <div class="strip"><a href="shots/02-pause-resume/01-paused.png" target="_blank"><img src="shots/02-pause-resume/01-paused.png" alt="paused" loading="lazy"><span class="cap">paused</span></a><a href="shots/02-pause-resume/02-resumed.png" target="_blank"><img src="shots/02-pause-resume/02-resumed.png" alt="resumed" loading="lazy"><span class="cap">resumed</span></a></div>
+    </div>
+  </section>
+  <section class="journey" id="03-slices-persist">
+    <div class="jhead"><h3>03-slices-persist</h3><span class="badge ok">4/4</span></div>
+    <p class="jpromise">A completed focus block earns a slice that survives a full reload</p>
+    <div class="jbody">
+      <ul class="steps">
+        <li class="yes"><span class="st">PASS</span><span>empty state invites the first block</span></li>
+        <li class="yes"><span class="st">PASS</span><span>one slice earned after completing a block</span></li>
+        <li class="yes"><span class="st">PASS</span><span>the earned slice survives a reload</span></li>
+        <li class="yes"><span class="st">PASS</span><span>empty-state prompt stays gone</span></li>
+      </ul>
+      <div class="strip"><a href="shots/03-slices-persist/01-one-slice-earned.png" target="_blank"><img src="shots/03-slices-persist/01-one-slice-earned.png" alt="one-slice-earned" loading="lazy"><span class="cap">one-slice-earned</span></a><a href="shots/03-slices-persist/02-slice-persists-after-reload.png" target="_blank"><img src="shots/03-slices-persist/02-slice-persists-after-reload.png" alt="slice-persists-after-reload" loading="lazy"><span class="cap">slice-persists-after-reload</span></a></div>
+    </div>
+  </section>
+  <section class="journey" id="04-reset-no-credit">
+    <div class="jhead"><h3>04-reset-no-credit</h3><span class="badge ok">3/3</span></div>
+    <p class="jpromise">Reset restores the full block — and never awards a slice for abandoned work</p>
+    <div class="jbody">
+      <ul class="steps">
+        <li class="yes"><span class="st">PASS</span><span>reset restores the full block</span></li>
+        <li class="yes"><span class="st">PASS</span><span>control returns to Start</span></li>
+        <li class="yes"><span class="st">PASS</span><span>no slice awarded for an abandoned block</span></li>
+      </ul>
+      <div class="strip"><a href="shots/04-reset-no-credit/01-reset-full-block.png" target="_blank"><img src="shots/04-reset-no-credit/01-reset-full-block.png" alt="reset-full-block" loading="lazy"><span class="cap">reset-full-block</span></a></div>
+    </div>
+  </section>
+
+  <h2>Viewport sweep</h2>
+  <div class="strip">
+    <a href="shots/viewports/1280x800.png" target="_blank"><img src="shots/viewports/1280x800.png" alt="1280x800" loading="lazy"><span class="cap">1280x800</span></a>
+    <a href="shots/viewports/320x568.png" target="_blank"><img src="shots/viewports/320x568.png" alt="320x568" loading="lazy"><span class="cap">320x568</span></a>
+    <a href="shots/viewports/390x844.png" target="_blank"><img src="shots/viewports/390x844.png" alt="390x844" loading="lazy"><span class="cap">390x844</span></a>
+    <a href="shots/viewports/430x932.png" target="_blank"><img src="shots/viewports/430x932.png" alt="430x932" loading="lazy"><span class="cap">430x932</span></a>
+    <a href="shots/viewports/768x1024.png" target="_blank"><img src="shots/viewports/768x1024.png" alt="768x1024" loading="lazy"><span class="cap">768x1024</span></a>
+  </div>
+
+  <footer>Generated by the /proof journey runner — regenerate with <code>node run.mjs</code>. Screenshots are the exact states the assertions saw.</footer>
+</div>
+<script>
+  document.querySelectorAll('.cmp').forEach(c => {
+    const set = x => {
+      const r = c.getBoundingClientRect();
+      c.style.setProperty('--x', Math.max(0, Math.min(100, ((x - r.left) / r.width) * 100)) + '%');
+    };
+    c.addEventListener('pointerdown', e => { c.setPointerCapture(e.pointerId); set(e.clientX); });
+    c.addEventListener('pointermove', e => { if (e.buttons) set(e.clientX); });
+  });
+</script>
+</body>
+</html>
