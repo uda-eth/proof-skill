@@ -2,7 +2,9 @@
 
 ## ✅ PROVEN — 17/17 assertions across 4 journeys
 
-Against `http://localhost:4173` · 2026-07-17 · [interactive report](REPORT.html)
+Against `http://localhost:4173` · 2026-07-18 · [interactive report](REPORT.html) · [journey replay](REPLAY.html)
+
+![journey replay](replay.gif)
 
 | journey | promise | steps |
 | --- | --- | ---: |

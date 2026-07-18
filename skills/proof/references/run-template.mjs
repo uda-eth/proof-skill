@@ -32,8 +32,76 @@ const BASELINE = ARGS.includes('--baseline');
 const ROOT = path.join(FOLDER, BASELINE ? 'shots-baseline' : 'shots');
 const USER_PREFIX = 'proof_'; // greppable + purgeable; change per suite if needed
 const ONLY = ARGS.find(a => !a.startsWith('--'))?.split(',') ?? null;
+const VIEWPORT = { width: 390, height: 844 }; // phone frame: proof looks like the product
 const results = [];
 let browser;
+
+// ── replay capture: frames + input log → REPLAY.html ────────────────────────
+// Drive the UI through tap/fillIn/swipe/navTo/pause instead of raw page.* and
+// every action is recorded — a frame before and after, plus the input's
+// coordinates — so the report writer can build REPLAY.html: a scrubbable
+// flipbook with crosshair/tap/swipe overlays, synced assertion ledger, and a
+// network log. Raw page.* still works; those actions just have no overlay.
+// Off in --baseline runs, or with --no-replay when you only want the pass.
+const REPLAY = !BASELINE && !ARGS.includes('--no-replay');
+const replays = {};
+const rp = j => (replays[j] ??= { t0: Date.now(), frames: [], events: [], net: [] });
+async function frame(page, j) {
+  if (!REPLAY) return;
+  const r = rp(j);
+  const buf = await page.screenshot({ type: 'jpeg', quality: 70, scale: 'css' }).catch(() => null);
+  if (!buf) return;
+  const rel = `frames/${j}/${String(r.frames.length).padStart(3, '0')}.jpg`;
+  fs.mkdirSync(path.join(FOLDER, 'frames', j), { recursive: true });
+  fs.writeFileSync(path.join(FOLDER, rel), buf);
+  r.frames.push({ t: Date.now() - r.t0, f: rel });
+}
+const ev = (j, e) => {
+  if (REPLAY) rp(j).events.push({ t: Date.now() - rp(j).t0, frame: rp(j).frames.length - 1, ...e });
+};
+/** Tap an element: overlay shows crosshair + pulse at its center. */
+async function tap(page, j, selector, label = '') {
+  const el = page.locator(selector).first();
+  const box = await el.boundingBox().catch(() => null);
+  await frame(page, j);
+  ev(j, { kind: 'tap', x: box ? box.x + box.width / 2 : 0, y: box ? box.y + box.height / 2 : 0, label });
+  await el.click();
+  await page.waitForTimeout(250);
+  await frame(page, j);
+}
+/** Type into a field: overlay shows the crosshair plus the text as a chip. */
+async function fillIn(page, j, selector, text, label = '') {
+  const el = page.locator(selector).first();
+  const box = await el.boundingBox().catch(() => null);
+  await frame(page, j);
+  ev(j, { kind: 'fill', x: box ? box.x + box.width / 2 : 0, y: box ? box.y + box.height / 2 : 0, text, label });
+  await el.fill(text);
+  await page.waitForTimeout(250);
+  await frame(page, j);
+}
+/** Drag/swipe between two viewport points: overlay draws the arrow. */
+async function swipe(page, j, [x, y], [x2, y2], label = '') {
+  await frame(page, j);
+  ev(j, { kind: 'swipe', x, y, x2, y2, label });
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x2, y2, { steps: 12 });
+  await page.mouse.up();
+  await page.waitForTimeout(250);
+  await frame(page, j);
+}
+/** Navigate (or reload with url = current): overlay shows a nav chip. */
+async function navTo(page, j, url, label = '') {
+  await page.goto(url, { waitUntil: 'networkidle' });
+  await frame(page, j);
+  ev(j, { kind: 'nav', label: label || url.replace(BASE, '') || '/' });
+}
+/** Let the app run (animations, timers) and keep a frame of where it landed. */
+async function pause(page, j, ms, label = '') {
+  await page.waitForTimeout(ms);
+  ev(j, { kind: 'wait', label: label || `${ms}ms` });
+  await frame(page, j);
+}
 
 // ── harness ─────────────────────────────────────────────────────────────────
 function dir(j) {
@@ -44,6 +112,7 @@ function dir(j) {
 /** Record one asserted step. Every claim in the report goes through here. */
 function rec(j, step, ok, note = '') {
   results.push({ journey: j, step, status: ok ? 'PASS' : 'FAIL', note });
+  ev(j, { kind: 'assert', status: ok ? 'PASS' : 'FAIL', label: step });
   if (!ok) console.log(`   ✗ ${j} :: ${step} ${note ? '— ' + note : ''}`);
 }
 /** Numbered screenshot of the current user-visible state. */
@@ -53,6 +122,8 @@ async function shot(page, j, idx, name) {
     path: path.join(dir(j), String(idx).padStart(2, '0') + '-' + name + '.png'),
     fullPage: false,
   });
+  await frame(page, j);
+  ev(j, { kind: 'shot', label: name });
 }
 const txt = async (page, t) => (await page.getByText(t, { exact: false }).count()) > 0;
 const sel = async (page, s) => (await page.locator(s).count()) > 0;
@@ -80,7 +151,7 @@ const psql = sql => {
 let userSeq = 0;
 async function freshUser(j, name) {
   const ctx = await browser.newContext({
-    viewport: { width: 390, height: 844 }, // phone frame: proof looks like the product
+    viewport: VIEWPORT,
     deviceScaleFactor: 2,
   });
   // Baseline captures drive a build where the feature may not exist — fail
@@ -95,6 +166,17 @@ async function freshUser(j, name) {
   });
   const page = await ctx.newPage();
   page.on('pageerror', e => rec(j, '(pageerror)', false, e.message.slice(0, 140)));
+  if (REPLAY)
+    page.on('response', res => {
+      const q = res.request();
+      rp(j).net.push({
+        t: Date.now() - rp(j).t0,
+        method: q.method(),
+        url: q.url().replace(BASE, '') || '/',
+        status: res.status(),
+        type: q.resourceType(),
+      });
+    });
 
   const email = `${USER_PREFIX}${j.replace(/[^a-z0-9]/g, '')}_${userSeq++}_${Date.now()}@t.com`;
   const r = await ctx.request.post(`${BASE}/api/auth/register`, {
@@ -121,10 +203,12 @@ const PROMISES = {
 J('01-happy-path', async () => {
   const j = '01-happy-path';
   const a = await freshUser(j, 'Maya Brooks');
-  await a.page.goto(`${BASE}/`, { waitUntil: 'networkidle' });
+  await navTo(a.page, j, `${BASE}/`);
   rec(j, 'the new surface renders', await sel(a.page, '[data-testid="my-feature"]'));
   await shot(a.page, j, 1, 'feature-visible');
-  // ...drive the core promise end to end...
+  // ...drive the core promise end to end through the act helpers so the
+  // replay shows every input: tap/fillIn/swipe/pause...
+  await tap(a.page, j, '[data-testid="my-feature-action"]', 'primary action');
   await a.ctx.close();
 });
 
@@ -133,7 +217,7 @@ J('02-negative', async () => {
   // What must NOT happen. A filter/gate/permission feature without a negative
   // journey proves nothing: assert the excluded thing is absent.
   const a = await freshUser(j, 'Alex Rivera');
-  await a.page.goto(`${BASE}/`, { waitUntil: 'networkidle' });
+  await navTo(a.page, j, `${BASE}/`);
   rec(j, 'excluded content is absent', !(await txt(a.page, 'SHOULD NEVER APPEAR')));
   await shot(a.page, j, 1, 'exclusion-holds');
   await a.ctx.close();
@@ -142,9 +226,9 @@ J('02-negative', async () => {
 J('03-persistence', async () => {
   const j = '03-persistence';
   const a = await freshUser(j, 'Jordan Wells');
-  await a.page.goto(`${BASE}/`, { waitUntil: 'networkidle' });
+  await navTo(a.page, j, `${BASE}/`);
   // ...toggle/act, wait for the debounced save, then reload and re-assert...
-  await a.page.reload({ waitUntil: 'networkidle' });
+  await navTo(a.page, j, `${BASE}/`, 'reload');
   rec(j, 'choice survives a reload', true /* re-assert here */);
   await shot(a.page, j, 1, 'persists-after-reload');
   await a.ctx.close();
@@ -186,6 +270,11 @@ async function main() {
     );
     process.exit(0);
   }
+  if (REPLAY)
+    fs.writeFileSync(
+      path.join(FOLDER, 'replay.json'),
+      JSON.stringify({ viewport: VIEWPORT, journeys: replays }, null, 1)
+    );
   const { pass, fail } = await writeReports({
     folder: FOLDER,
     base: BASE,

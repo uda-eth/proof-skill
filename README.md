@@ -12,7 +12,9 @@
   report.json        # machine-readable results
   REPORT.md          # TLDR verdict + before/after pairs + ✅/❌ per step — renders in the PR
   REPORT.html        # interactive report, screenshots embedded — one file that opens anywhere
-  shots/<journey>/   # numbered screenshots a reviewer can judge in 30 seconds
+  REPLAY.html        # scrubbable journey replay — crosshair tap/swipe overlays, timeline, network log
+  replay.gif         # (with ffmpeg) the happy path replaying — GitHub animates it in the PR
+  frames/ shots/     # replay frames + numbered screenshots a reviewer judges in 30 seconds
   shots-baseline/    # (optional) the same steps captured on the merge-base build
 ```
 
@@ -65,13 +67,13 @@ node demo/pomodoro-journeys/run.mjs             # 17 assertions + shots/ + repor
 node demo/pomodoro-journeys/viewports.mjs       # 320px → 1280px sweep
 ```
 
-Open `demo/pomodoro-journeys/REPORT.md` to see what renders in a PR, and `REPORT.html` in a browser for the interactive version — drag the before/after sliders to watch the ticket's promises (break handoff, persistent slices) appear against the merge-base build.
+Open `demo/pomodoro-journeys/REPORT.md` to see what renders in a PR, and `REPORT.html` in a browser for the interactive version — drag the before/after sliders to watch the ticket's promises (break handoff, persistent slices) appear against the merge-base build. Then open `REPLAY.html` and press play: every journey replays as a scrubbable flipbook with crosshair overlays on each tap, a video-editor timeline of inputs and assertions, a synced step ledger, and a network log. With `ffmpeg` installed the runner also emits `replay.gif` — the happy path animating right inside REPORT.md.
 
 ## What's in the box
 
 - [`skills/proof/SKILL.md`](skills/proof/SKILL.md) — the loop: derive journeys → verify the server is *your* code → runner → green → look at the shots → viewport sweep → optional before/after baseline → ship the pack. Plus the gotchas that have burned real reviews.
-- [`skills/proof/references/run-template.mjs`](skills/proof/references/run-template.mjs) — the journey runner harness (rec/shot contract, API-staged users, DB helpers, `--baseline` capture mode).
-- [`skills/proof/references/report-template.mjs`](skills/proof/references/report-template.mjs) — the report writer: one results array → `report.json` + a TLDR-first `REPORT.md` + a self-contained interactive `REPORT.html` with before/after sliders. Zero dependencies.
+- [`skills/proof/references/run-template.mjs`](skills/proof/references/run-template.mjs) — the journey runner harness (rec/shot contract, tap/fillIn/swipe act helpers with replay capture, API-staged users, DB helpers, `--baseline` capture mode).
+- [`skills/proof/references/report-template.mjs`](skills/proof/references/report-template.mjs) — the report writer: one results array → `report.json` + a TLDR-first `REPORT.md` + a self-contained interactive `REPORT.html` with before/after sliders + a scrubbable `REPLAY.html` journey player (and `replay.gif` when ffmpeg is present). Zero dependencies beyond playwright.
 - [`skills/proof/references/viewports-template.mjs`](skills/proof/references/viewports-template.mjs) — the five-viewport sweep.
 
 Works with any web app Playwright can drive. The templates assume Node + a Postgres `DATABASE_URL` for optional direct staging; both are trivially swappable.
