@@ -40,7 +40,7 @@ A stale server from another checkout will happily serve old code and every journ
 
 Copy `references/run-template.mjs` (as `run.mjs`) and `references/report-template.mjs` (as `report.mjs`, verbatim — no edits needed) into a `<feature>-journeys/` folder at the repo root and adapt the runner. The template gives you the harness contract:
 
-- **Real Chrome, headless, phone viewport** (390×844, dpr 2) — review-stage proof looks like the product, not a 1920px dev window.
+- **Real Chrome, headless, phone viewport** (390×844, dpr 2) — review-stage proof looks like the product, not a 1920px dev window. **Desktop-first app?** `PROOF_DEVICE=desktop` (or `--device=desktop`) records at 1280×800 and the proof page renders browser-window chrome instead of a phone; phone stays the default.
 - **Fresh throwaway users per journey** with a greppable email prefix (e.g. `fpj_…@t.com`), purged at the start of every run so reruns are deterministic.
 - **Stage state through APIs/DB, drive UI only for what the user would do.** Registration flags, onboarding, seed posts — set them up via requests or SQL so each journey spends its time on the promise, not on typing into forms (except the journey whose promise IS the form).
 - **`rec(journey, step, ok, note)` for every step** — every claim in the report is an assertion that ran, pass or fail, never prose.

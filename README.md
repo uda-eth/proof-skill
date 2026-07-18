@@ -75,7 +75,7 @@ Open `demo/pomodoro-journeys/REPORT.md` to see what renders in a PR, then open `
 - [`skills/proof/references/report-template.mjs`](skills/proof/references/report-template.mjs) — the report writer: one results array → `report.json` + a TLDR-first `REPORT.md` + one self-contained `REPORT.html` proof page — screen-recording player, verdict stamp, before/after sliders, ledgers (and `replay.gif` when ffmpeg is present). Zero dependencies beyond playwright.
 - [`skills/proof/references/viewports-template.mjs`](skills/proof/references/viewports-template.mjs) — the five-viewport sweep.
 
-Works with any web app Playwright can drive. The templates assume Node + a Postgres `DATABASE_URL` for optional direct staging; both are trivially swappable.
+Records at a phone viewport by default; `PROOF_DEVICE=desktop` records at 1280×800 and the proof page swaps the phone frame for a browser window. Works with any web app Playwright can drive. The templates assume Node + a Postgres `DATABASE_URL` for optional direct staging; both are trivially swappable.
 
 ## License
 

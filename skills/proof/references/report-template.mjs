@@ -211,14 +211,15 @@ export async function writeReports({ folder, base, title = 'user journeys', resu
     ? JSON.stringify({ viewport: replay.viewport, journeys: jr }).replace(/</g, '\\u003c')
     : 'null';
   const ar = hasPlayer ? `${replay.viewport.width} / ${replay.viewport.height}` : '390 / 844';
+  const device = hasPlayer ? (replay.device || (replay.viewport.width >= 1000 ? 'desktop' : 'phone')) : 'phone';
 
   const playerSection = !hasPlayer
     ? ''
     : `
-  <div class="player">
+  <div class="player dev-${device}">
     <div class="pbar"><nav class="jtabs" id="jtabs"></nav><span class="rec"><i></i>RECORDED RUN</span></div>
     <div class="stage">
-      <div class="devcol"><div class="bezel"><div class="screen">
+      <div class="devcol"><div class="bezel"><div class="chrome"><span class="tl"></span><span class="tl"></span><span class="tl"></span><span class="url">${esc(base)}</span></div><div class="screen">
         <video id="vid" playsinline muted preload="auto"></video>
         <div class="chip" id="chip" hidden></div>
         <div class="hud" id="hud" hidden></div>
@@ -292,6 +293,17 @@ export async function writeReports({ folder, base, title = 'user journeys', resu
   .bezel { background: #05060a; border-radius: 42px; padding: 9px; box-shadow: inset 0 0 0 1.5px #2e333c, 0 18px 40px -20px rgba(0,0,0,0.8); height: 100%; }
   .screen { position: relative; border-radius: 33px; overflow: hidden; background: #fff; height: 100%; aspect-ratio: ${ar}; }
   .screen video { display: block; width: 100%; height: 100%; object-fit: cover; }
+  /* desktop device: the phone bezel becomes a browser window, panels drop below */
+  .chrome { display: none; }
+  .player.dev-desktop .stage { flex-direction: column; }
+  .player.dev-desktop .devcol { flex: 1; min-height: 0; width: 100%; height: auto; display: flex; }
+  .player.dev-desktop .bezel { flex: 1; min-height: 0; margin: auto; padding: 0; border-radius: 12px; background: #0b0d11; box-shadow: 0 18px 40px -20px rgba(0,0,0,0.8), inset 0 0 0 1px var(--line); display: flex; flex-direction: column; height: 100%; max-width: 100%; }
+  .player.dev-desktop .chrome { display: flex; align-items: center; gap: 7px; padding: 9px 13px; border-bottom: 1px solid var(--line); flex: none; }
+  .player.dev-desktop .chrome .tl { width: 11px; height: 11px; border-radius: 50%; background: #3a4048; }
+  .player.dev-desktop .chrome .url { margin-left: 10px; font: 500 11px var(--mono); color: var(--mute); background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 3px 11px; max-width: 62%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .player.dev-desktop .screen { flex: 1; min-height: 0; width: 100%; height: auto; aspect-ratio: auto; border-radius: 0 0 11px 11px; }
+  .player.dev-desktop .screen video { object-fit: contain; background: #0b0d11; }
+  .player.dev-desktop .side { flex: none; height: 232px; }
   .chip { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); max-width: 86%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font: 700 10.5px var(--mono); letter-spacing: 0.06em; padding: 5px 11px; border-radius: 999px; background: rgba(10,12,16,0.82); color: #fff; border: 1px solid rgba(255,255,255,0.22); pointer-events: none; }
   .hud { position: absolute; left: 10px; bottom: 10px; font: 600 10px var(--mono); letter-spacing: 0.04em; padding: 4px 8px; border-radius: 6px; background: rgba(10,12,16,0.82); color: #cfd4db; border: 1px solid rgba(255,255,255,0.16); font-variant-numeric: tabular-nums; pointer-events: none; }
   .hud b { color: #fff; }

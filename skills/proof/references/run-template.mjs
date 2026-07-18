@@ -8,7 +8,7 @@
 // Contract: every step is rec()'d (assertion), every user-visible state is
 // shot() (screenshot), report.json + REPORT.md + REPORT.html are written,
 // exit is non-zero on any failure.
-// Usage: node <feature>-journeys/run.mjs [--baseline] [journey1,journey2]
+// Usage: node <feature>-journeys/run.mjs [--baseline] [--device=desktop] [journey1,journey2]
 //
 // --baseline captures the BEFORE side of before/after pairs. Stand up the
 // merge-base build on another port, then point the runner at it:
@@ -32,7 +32,14 @@ const BASELINE = ARGS.includes('--baseline');
 const ROOT = path.join(FOLDER, BASELINE ? 'shots-baseline' : 'shots');
 const USER_PREFIX = 'proof_'; // greppable + purgeable; change per suite if needed
 const ONLY = ARGS.find(a => !a.startsWith('--'))?.split(',') ?? null;
-const VIEWPORT = { width: 390, height: 844 }; // phone frame: proof looks like the product
+// Device to record at. Phone is the default (review-stage proof looks like
+// the product, not a 1920px dev window); desktop for desktop-first apps.
+//   PROOF_DEVICE=desktop node run.mjs   ·   node run.mjs --device=desktop
+const DEVICES = { phone: { width: 390, height: 844, dpr: 2 }, desktop: { width: 1280, height: 800, dpr: 1 } };
+const DEVICE = process.env.PROOF_DEVICE || ARGS.find(a => a.startsWith('--device='))?.split('=')[1] || 'phone';
+const _DV = DEVICES[DEVICE] || DEVICES.phone;
+const VIEWPORT = { width: _DV.width, height: _DV.height };
+const DPR = _DV.dpr;
 const results = [];
 let browser;
 
@@ -221,7 +228,7 @@ let userSeq = 0;
 async function freshUser(j, name) {
   const ctx = await browser.newContext({
     viewport: VIEWPORT,
-    deviceScaleFactor: 2,
+    deviceScaleFactor: DPR,
     ...(REPLAY ? { recordVideo: { dir: path.join(FOLDER, 'videos'), size: VIEWPORT } } : {}),
   });
   // Baseline captures drive a build where the feature may not exist — fail
@@ -345,7 +352,7 @@ async function main() {
   if (REPLAY)
     fs.writeFileSync(
       path.join(FOLDER, 'replay.json'),
-      JSON.stringify({ viewport: VIEWPORT, journeys: replays }, null, 1)
+      JSON.stringify({ device: DEVICE, viewport: VIEWPORT, journeys: replays }, null, 1)
     );
   const { pass, fail } = await writeReports({
     folder: FOLDER,

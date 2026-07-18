@@ -20,7 +20,14 @@ const ARGS = process.argv.slice(2);
 const BASELINE = ARGS.includes('--baseline');
 const APP_DIR = path.join(FOLDER, '..', BASELINE ? 'pomodoro-app-baseline' : 'pomodoro-app');
 const ROOT = path.join(FOLDER, BASELINE ? 'shots-baseline' : 'shots');
-const VIEWPORT = { width: 390, height: 844 };
+// Device to record at. Phone is the default (review-stage proof looks like
+// the product, not a 1920px dev window); desktop for desktop-first apps.
+//   PROOF_DEVICE=desktop node run.mjs   ·   node run.mjs --device=desktop
+const DEVICES = { phone: { width: 390, height: 844, dpr: 2 }, desktop: { width: 1280, height: 800, dpr: 1 } };
+const DEVICE = process.env.PROOF_DEVICE || ARGS.find(a => a.startsWith('--device='))?.split('=')[1] || 'phone';
+const _DV = DEVICES[DEVICE] || DEVICES.phone;
+const VIEWPORT = { width: _DV.width, height: _DV.height };
+const DPR = _DV.dpr;
 const results = [];
 let browser;
 
@@ -154,7 +161,7 @@ async function shot(page, j, idx, name) {
 async function freshSession(j) {
   const ctx = await browser.newContext({
     viewport: VIEWPORT,
-    deviceScaleFactor: 2,
+    deviceScaleFactor: DPR,
     ...(REPLAY ? { recordVideo: { dir: path.join(FOLDER, 'videos'), size: VIEWPORT } } : {}),
   });
   // Baseline drives a build the feature doesn't exist on — fail fast, not 30s.
@@ -296,7 +303,7 @@ async function main() {
   if (REPLAY)
     fs.writeFileSync(
       path.join(FOLDER, 'replay.json'),
-      JSON.stringify({ viewport: VIEWPORT, journeys: replays }, null, 1)
+      JSON.stringify({ device: DEVICE, viewport: VIEWPORT, journeys: replays }, null, 1)
     );
   const PROMISES = {
     '01-focus-cycle':
