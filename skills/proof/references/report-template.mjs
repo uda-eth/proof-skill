@@ -367,24 +367,49 @@ ${
   return { pass, fail, proven, pairs: pairs.length };
 }
 
-// ── REPLAY.html — scrubbable flipbook player ─────────────────────────────────
-// One self-contained file: every frame embedded, inputs drawn as an overlay
-// (crosshair through the tap point, arrow for swipes, chips for nav/typing),
-// assertion ledger synced to the scrubber, network log, per-step timing.
+// ── REPLAY.html — screen-recorded journey player ─────────────────────────────
+// The run was actually recorded: each journey is a real video of the test
+// happening, reticle included (it was injected into the live page at the
+// run's recorded input coordinates). This page wraps those recordings in an
+// instrument: scrub bar with input/assertion ticks, synced ledger, network
+// log, per-step timing. One self-contained file — videos embedded as data
+// URIs (mp4 when ffmpeg is available, webm otherwise).
 async function writeReplay({ folder, base, title, generated, replay, journeys, proven }) {
+  let ffmpeg = true;
+  try {
+    execSync('ffmpeg -version', { stdio: 'pipe' });
+  } catch {
+    ffmpeg = false;
+  }
   const jr = journeys
-    .filter(j => replay.journeys[j.name]?.frames?.length)
+    .filter(j => {
+      const r = replay.journeys[j.name];
+      return r?.video && fs.existsSync(path.join(folder, r.video));
+    })
     .map(j => {
       const r = replay.journeys[j.name];
+      const webm = path.join(folder, r.video);
+      let src = null;
+      if (ffmpeg) {
+        const tmp = webm + '.tmp.mp4';
+        try {
+          execSync(
+            `ffmpeg -y -i "${webm}" -c:v libx264 -pix_fmt yuv420p -movflags +faststart -crf 28 -an "${tmp}"`,
+            { stdio: 'pipe' }
+          );
+          src = 'data:video/mp4;base64,' + fs.readFileSync(tmp).toString('base64');
+          fs.rmSync(tmp, { force: true });
+        } catch {
+          src = null;
+        }
+      }
+      if (!src) src = 'data:video/webm;base64,' + fs.readFileSync(webm).toString('base64');
       return {
         name: j.name,
         promise: j.promise,
         pass: j.pass,
         fail: j.fail,
-        frames: r.frames.map(f => ({
-          t: f.t,
-          src: 'data:image/jpeg;base64,' + fs.readFileSync(path.join(folder, f.f)).toString('base64'),
-        })),
+        video: src,
         events: r.events,
         net: (r.net || []).filter(n => n.type !== 'image' || n.status >= 400),
       };
@@ -406,7 +431,7 @@ async function writeReplay({ folder, base, title, generated, replay, journeys, p
     --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
     /* the player is a dark instrument in both themes — like any editor */
     --pbg: #0e1014; --pcard: #15181e; --pline: #252a32; --pink: #e8eaee; --pmute: #868e99;
-    --pok: #46b981; --pbad: #e0645f; --paccent: #e8eaee;
+    --pok: #46b981; --pbad: #e0645f;
   }
   @media (prefers-color-scheme: dark) {
     :root { --bg: #101317; --card: #181c22; --ink: #e7eaee; --muted: #8b939e; --line: #2b313a; --ok: #46b981; --bad: #e0645f; }
@@ -433,23 +458,20 @@ async function writeReplay({ folder, base, title, generated, replay, journeys, p
   .jtabs .jdot { width: 7px; height: 7px; border-radius: 50%; background: var(--pok); }
   .jtabs .jdot.bad { background: var(--pbad); }
   .jtabs button:focus-visible, .ptabs button:focus-visible, .tbtn:focus-visible, .seg button:focus-visible { outline: 2px solid var(--pink); outline-offset: 2px; }
+  .rec { margin-left: auto; display: inline-flex; align-items: center; gap: 7px; font: 700 10px var(--mono); letter-spacing: 0.18em; color: var(--pmute); }
+  .rec i { width: 8px; height: 8px; border-radius: 50%; background: var(--pbad); animation: blink 1.6s infinite; }
+  @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.25; } }
+  @media (prefers-reduced-motion: reduce) { .rec i { animation: none; } }
 
   .stage { display: grid; grid-template-columns: minmax(240px, 330px) 1fr; gap: 26px; align-items: start; padding: 26px; }
   @media (max-width: 840px) { .stage { grid-template-columns: 1fr; } }
   .bezel { background: #05060a; border-radius: 42px; padding: 10px; box-shadow: inset 0 0 0 1.5px #2e333c, 0 18px 40px -20px rgba(0,0,0,0.8); }
   .screen { position: relative; border-radius: 33px; overflow: hidden; background: #fff; }
-  .screen img { display: block; width: 100%; user-select: none; -webkit-user-drag: none; }
-  .overlay { position: absolute; inset: 0; pointer-events: none; }
-  .hl, .vl { position: absolute; background: rgba(255,255,255,0.92); box-shadow: 0 0 0 0.5px rgba(8,10,14,0.5); will-change: top, left; }
-  .hl { left: 0; right: 0; height: 1px; } .vl { top: 0; bottom: 0; width: 1px; }
-  .ring { position: absolute; width: 30px; height: 30px; border-radius: 10px; border: 2px solid #fff; box-shadow: 0 2px 12px rgba(8,10,14,0.5), inset 0 0 0 1px rgba(8,10,14,0.35); transform: translate(-50%,-50%); display: grid; place-items: center; font: 700 12px var(--mono); color: #fff; background: rgba(14,16,20,0.55); backdrop-filter: blur(2px); will-change: left, top; }
-  .ring.moving { border-style: dashed; background: rgba(14,16,20,0.25); }
-  .pulse { position: absolute; width: 30px; height: 30px; border-radius: 12px; border: 2.5px solid #fff; transform: translate(-50%,-50%); opacity: 0; will-change: transform, opacity; }
-  .ovsvg { position: absolute; inset: 0; width: 100%; height: 100%; display: none; }
-  .chip { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); max-width: 86%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font: 700 10.5px var(--mono); letter-spacing: 0.06em; padding: 5px 11px; border-radius: 999px; background: rgba(10,12,16,0.82); color: #fff; border: 1px solid rgba(255,255,255,0.22); }
-  .hud { position: absolute; left: 10px; bottom: 10px; font: 600 10px var(--mono); letter-spacing: 0.04em; padding: 4px 8px; border-radius: 6px; background: rgba(10,12,16,0.82); color: #cfd4db; border: 1px solid rgba(255,255,255,0.16); font-variant-numeric: tabular-nums; }
+  .screen video { display: block; width: 100%; }
+  .chip { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); max-width: 86%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font: 700 10.5px var(--mono); letter-spacing: 0.06em; padding: 5px 11px; border-radius: 999px; background: rgba(10,12,16,0.82); color: #fff; border: 1px solid rgba(255,255,255,0.22); pointer-events: none; }
+  .hud { position: absolute; left: 10px; bottom: 10px; font: 600 10px var(--mono); letter-spacing: 0.04em; padding: 4px 8px; border-radius: 6px; background: rgba(10,12,16,0.82); color: #cfd4db; border: 1px solid rgba(255,255,255,0.16); font-variant-numeric: tabular-nums; pointer-events: none; }
   .hud b { color: #fff; }
-  .toast { position: absolute; bottom: 10px; right: 10px; max-width: 70%; font: 600 10.5px var(--mono); padding: 5px 10px; border-radius: 7px; background: rgba(10,12,16,0.88); color: #fff; border-left: 3px solid var(--pok); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .toast { position: absolute; bottom: 10px; right: 10px; max-width: 70%; font: 600 10.5px var(--mono); padding: 5px 10px; border-radius: 7px; background: rgba(10,12,16,0.88); color: #fff; border-left: 3px solid var(--pok); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
   .toast.bad { border-left-color: var(--pbad); }
 
   .side { border: 1px solid var(--pline); border-radius: 12px; background: var(--pcard); overflow: hidden; align-self: stretch; display: flex; flex-direction: column; }
@@ -513,21 +535,15 @@ async function writeReplay({ folder, base, title, generated, replay, journeys, p
 <div class="wrap">
   <div class="eyebrow">Proof pack · journey replay</div>
   <h1>${esc(title)}</h1>
-  <p class="meta"><span class="vbadge ${proven ? 'ok' : 'bad'}">${proven ? '✓ PROVEN' : '✗ NOT PROVEN'}</span> · <a href="REPORT.html">certificate ▸</a> · against <code>${esc(base)}</code> · ${generated} · every overlay position is a recorded coordinate from the run</p>
+  <p class="meta"><span class="vbadge ${proven ? 'ok' : 'bad'}">${proven ? '✓ PROVEN' : '✗ NOT PROVEN'}</span> · <a href="REPORT.html">certificate ▸</a> · against <code>${esc(base)}</code> · ${generated} · real screen recordings of the run — the reticle was injected into the live page at the recorded input coordinates</p>
   <div class="player">
-    <div class="pbar"><nav class="jtabs" id="jtabs"></nav></div>
+    <div class="pbar"><nav class="jtabs" id="jtabs"></nav><span class="rec"><i></i>RECORDED RUN</span></div>
     <div class="stage">
       <div><div class="bezel"><div class="screen">
-        <img id="frame" alt="app frame">
-        <div class="overlay">
-          <div class="hl" id="hl"></div><div class="vl" id="vl"></div>
-          <svg class="ovsvg" id="swsvg" preserveAspectRatio="none"><defs><marker id="ah" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0 L8 4 L0 8 z" fill="#fff"/></marker></defs><line id="swline" stroke="#fff" stroke-width="3" marker-end="url(#ah)"/></svg>
-          <div class="pulse" id="pulse"></div>
-          <div class="ring" id="ring"></div>
-          <div class="chip" id="chip" hidden></div>
-          <div class="hud" id="hud" hidden></div>
-          <div class="toast" id="toast" hidden></div>
-        </div>
+        <video id="vid" playsinline muted preload="auto"></video>
+        <div class="chip" id="chip" hidden></div>
+        <div class="hud" id="hud" hidden></div>
+        <div class="toast" id="toast" hidden></div>
       </div></div></div>
       <aside class="side">
         <nav class="ptabs" id="ptabs">
@@ -544,49 +560,26 @@ async function writeReplay({ folder, base, title, generated, replay, journeys, p
     </div>
     <div class="transport">
       <button class="tbtn" id="play" title="play/pause">▶</button>
-      <div class="seg" id="speed"><button data-s="1">1×</button><button data-s="2">2×</button><button data-s="4" class="on">4×</button><button data-s="8">8×</button></div>
+      <div class="seg" id="speed"><button data-s="1">1×</button><button data-s="2" class="on">2×</button><button data-s="4">4×</button><button data-s="8">8×</button></div>
       <div class="trackwrap"><div class="track"><div class="prog" id="prog"></div><div class="ticks" id="ticks"></div><div class="playhead" id="playhead"></div></div><input type="range" id="scrub" min="0" max="1000" value="0" aria-label="scrub timeline"></div>
       <span class="clock" id="clock"></span>
       <button class="tbtn on" id="loopb" title="loop">⟲</button>
     </div>
   </div>
-  <footer><kbd>space</kbd> play/pause · <kbd>←</kbd><kbd>→</kbd> frame step · drag the timeline. The reticle glides between the run's recorded input coordinates (bottom-left HUD shows the live x·y); green/red ticks are assertions.</footer>
+  <footer><kbd>space</kbd> play/pause · <kbd>←</kbd><kbd>→</kbd> jump between events · drag the timeline. This is the actual recording of the test session; green/red ticks are assertions, dark ticks are inputs (hover for the recorded coordinates).</footer>
 </div>
 <script>
 var DATA = ${data};
-var GLYPH = { tap: '●', fill: '⌨', swipe: '⇄' };
-var REDUCED = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-var jIdx = 0, clock = 0, playing = false, speed = 4, loop = true, curFrame = -1, lastTick = 0, track = [];
+var GLYPH = { tap: 'tap', fill: 'type', swipe: 'swipe' };
+var jIdx = 0, speed = 2, loop = true;
 var $ = function (id) { return document.getElementById(id); };
+var vid = $('vid');
 function J() { return DATA.journeys[jIdx]; }
-function dur() { var f = J().frames; return f[f.length - 1].t + 700; }
-function frameAt(t) { var f = J().frames, i = 0; for (var k = 0; k < f.length; k++) if (f[k].t <= t) i = k; return i; }
+function evDur() { var e = J().events; return e.length ? e[e.length - 1].t + 900 : 1000; }
+function D() { return Math.max(vid.duration && isFinite(vid.duration) ? vid.duration * 1000 : 0, evDur()); }
+function clock() { return vid.currentTime * 1000; }
 function fmt(ms) { return (ms / 1000).toFixed(1) + 's'; }
 function escs(s) { var d = document.createElement('i'); d.textContent = s == null ? '' : String(s); return d.innerHTML; }
-function ease(t) { return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; }
-function endPos(e) { return e.kind === 'swipe' ? { x: e.x2, y: e.y2 } : { x: e.x, y: e.y }; }
-
-// The reticle is permanent: it rests on the last real input coordinate and
-// glides to the next one, timed to arrive exactly when that input fired.
-// Endpoints are always recorded datapoints; the glide is presentation.
-function cursorAt(c) {
-  if (!track.length) return null;
-  var prev = null, next = null;
-  for (var i = 0; i < track.length; i++) { if (track[i].t <= c) prev = track[i]; else { next = track[i]; break; } }
-  if (!prev) return { x: track[0].x, y: track[0].y, kind: track[0].kind, ev: next, phase: 'rest' };
-  if (prev.kind === 'swipe' && c < prev.t + 450 && !REDUCED) {
-    var ks = ease(Math.min(1, (c - prev.t) / 450));
-    return { x: prev.x + (prev.x2 - prev.x) * ks, y: prev.y + (prev.y2 - prev.y) * ks, kind: 'swipe', ev: prev, phase: 'swiping' };
-  }
-  var from = endPos(prev);
-  var clickAge = c - prev.t;
-  if (!next) return { x: from.x, y: from.y, kind: prev.kind, ev: prev, phase: 'rest', clickAge: clickAge };
-  var travel = REDUCED ? 0 : Math.min(700, (next.t - prev.t) * 0.5);
-  var start = next.t - travel;
-  if (c < start || !travel) return { x: from.x, y: from.y, kind: prev.kind, ev: prev, phase: 'rest', clickAge: clickAge };
-  var k = ease((c - start) / travel);
-  return { x: from.x + (next.x - from.x) * k, y: from.y + (next.y - from.y) * k, kind: next.kind, ev: next, phase: 'moving' };
-}
 
 function buildJourneyTabs() {
   $('jtabs').innerHTML = DATA.journeys.map(function (j, i) {
@@ -595,15 +588,15 @@ function buildJourneyTabs() {
 }
 function buildPanels() {
   var j = J(), vw = DATA.viewport;
-  track = j.events.filter(function (e) { return GLYPH[e.kind]; });
+  var inputs = j.events.filter(function (e) { return GLYPH[e.kind]; });
   var asserts = j.events.filter(function (e) { return e.kind === 'assert'; });
   $('p-summary').innerHTML =
     '<p><span class="badge ' + (j.fail ? 'bad' : 'ok') + '">' + (j.fail ? '✗ ' : '✓ ') + j.pass + '/' + (j.pass + j.fail) + '</span></p>' +
     (j.promise ? '<p class="promise">' + escs(j.promise) + '</p>' : '') +
-    '<div class="kv"><span>frames</span><span>' + j.frames.length + '</span>' +
-    '<span>inputs</span><span>' + track.length + '</span>' +
-    '<span>duration</span><span>' + fmt(j.frames[j.frames.length - 1].t) + '</span>' +
-    '<span>viewport</span><span>' + vw.width + '×' + vw.height + '</span></div>';
+    '<div class="kv"><span>inputs</span><span>' + inputs.length + '</span>' +
+    '<span>duration</span><span>' + fmt(evDur()) + '</span>' +
+    '<span>viewport</span><span>' + vw.width + '×' + vw.height + '</span>' +
+    '<span>recording</span><span>real-time screen capture</span></div>';
   $('p-steps').innerHTML = '<ul class="steps">' + asserts.map(function (e) {
     return '<li data-t="' + e.t + '" class="' + (e.status === 'PASS' ? 'yes' : 'no') + '"><span class="st">' + (e.status === 'PASS' ? '✓' : '✗') + '</span><span>' + escs(e.label) + '</span><span class="t">' + fmt(e.t) + '</span></li>';
   }).join('') + '</ul>';
@@ -613,189 +606,118 @@ function buildPanels() {
       }).join('') + '</table>'
     : '<p style="color:var(--pmute);font-size:13px">No requests recorded.</p>';
   $('p-perf').innerHTML = asserts.map(function (e) {
-    return '<div class="perfrow ' + (e.status === 'PASS' ? 'yes' : 'no') + '"><div>' + escs(e.label) + '<div class="bar"><i style="width:' + Math.max(2, (e.t / dur()) * 100) + '%"></i></div></div><span class="ms">' + fmt(e.t) + '</span></div>';
+    return '<div class="perfrow ' + (e.status === 'PASS' ? 'yes' : 'no') + '"><div>' + escs(e.label) + '<div class="bar"><i style="width:' + Math.max(2, (e.t / evDur()) * 100) + '%"></i></div></div><span class="ms">' + fmt(e.t) + '</span></div>';
   }).join('');
   $('ticks').innerHTML = j.events.map(function (e) {
     var cls = e.kind === 'assert' ? (e.status === 'PASS' ? 'ok' : 'bad') : e.kind === 'shot' ? 'shotm' : GLYPH[e.kind] || e.kind === 'nav' ? '' : null;
     if (cls === null) return '';
     var tip = e.kind + (e.label ? ' · ' + e.label : '') + (GLYPH[e.kind] ? ' · ' + Math.round(e.x) + ',' + Math.round(e.y) : '');
-    return '<div class="tick ' + cls + '" style="left:' + (e.t / dur()) * 100 + '%" title="' + escs(tip) + '"></div>';
+    return '<div class="tick ' + cls + '" style="left:' + (e.t / D()) * 100 + '%" title="' + escs(tip) + '"></div>';
   }).join('');
-  var svg = $('swsvg');
-  svg.setAttribute('viewBox', '0 0 ' + vw.width + ' ' + vw.height);
   Array.prototype.forEach.call(document.querySelectorAll('#p-steps li'), function (li) {
-    li.addEventListener('click', function () { clock = +li.dataset.t; playing = false; render(true); });
+    li.addEventListener('click', function () { vid.pause(); vid.currentTime = +li.dataset.t / 1000; });
   });
 }
-function renderCursor() {
-  var vw = DATA.viewport, cur = cursorAt(clock);
-  var show = !!cur;
-  ['hl', 'vl', 'ring'].forEach(function (id) { $(id).style.display = show ? '' : 'none'; });
-  if (!show) { $('pulse').style.opacity = 0; $('swsvg').style.display = 'none'; $('hud').hidden = true; return; }
-  var X = (cur.x / vw.width) * 100, Y = (cur.y / vw.height) * 100;
-  $('hl').style.top = Y + '%';
-  $('vl').style.left = X + '%';
-  var ring = $('ring');
-  ring.style.left = X + '%';
-  ring.style.top = Y + '%';
-  ring.textContent = GLYPH[cur.kind] || '●';
-  ring.className = 'ring' + (cur.phase === 'moving' ? ' moving' : '');
-  var pulse = $('pulse');
-  if (cur.phase === 'rest' && cur.clickAge != null && cur.clickAge < 420 && !REDUCED) {
-    var p = cur.clickAge / 420;
-    pulse.style.left = X + '%';
-    pulse.style.top = Y + '%';
-    pulse.style.opacity = 1 - p;
-    pulse.style.transform = 'translate(-50%,-50%) scale(' + (1 + p * 1.6) + ')';
-  } else pulse.style.opacity = 0;
-  var svg = $('swsvg');
-  if (cur.phase === 'swiping' || (cur.ev && cur.ev.kind === 'swipe' && cur.phase === 'rest' && cur.clickAge < 900)) {
-    svg.style.display = 'block';
-    var l = $('swline'), e = cur.ev;
-    l.setAttribute('x1', e.x); l.setAttribute('y1', e.y);
-    l.setAttribute('x2', cur.phase === 'swiping' ? cur.x : e.x2);
-    l.setAttribute('y2', cur.phase === 'swiping' ? cur.y : e.y2);
-  } else svg.style.display = 'none';
-  var hud = $('hud');
-  hud.hidden = false;
-  hud.innerHTML = '<b>' + Math.round(cur.x) + '</b> · <b>' + Math.round(cur.y) + '</b>' + (cur.ev && cur.ev.label ? ' — ' + escs((cur.phase === 'moving' ? '→ ' : '') + cur.ev.kind + ' ' + cur.ev.label) : '');
-}
-function render(force) {
-  var i = frameAt(clock);
-  if (i !== curFrame || force) { curFrame = i; $('frame').src = J().frames[i].src; }
-  renderCursor();
+function render() {
+  var c = clock();
+  var inputs = J().events.filter(function (e) { return GLYPH[e.kind]; });
+  var prev = null, next = null;
+  for (var i = 0; i < inputs.length; i++) { if (inputs[i].t <= c) prev = inputs[i]; else { next = inputs[i]; break; } }
+  var hud = $('hud'), cur = null, arrow = '';
+  if (next && c >= next.t - 450) { cur = next; arrow = '→ '; }
+  else if (prev && c - prev.t < 2600) cur = prev;
+  hud.hidden = !cur;
+  if (cur) hud.innerHTML = '<b>' + Math.round(cur.x) + '</b> · <b>' + Math.round(cur.y) + '</b> — ' + escs(arrow + GLYPH[cur.kind] + (cur.label ? ' ' + cur.label : ''));
   var ctx = null;
   J().events.forEach(function (e) {
-    if ((e.kind === 'nav' || e.kind === 'wait' || e.kind === 'shot') && e.t <= clock && clock - e.t < 2200) ctx = e;
+    if ((e.kind === 'nav' || e.kind === 'wait' || e.kind === 'shot') && e.t <= c && c - e.t < 2200) ctx = e;
   });
   $('chip').hidden = !ctx;
   if (ctx) $('chip').textContent = (ctx.kind === 'nav' ? '⇥ ' : ctx.kind === 'shot' ? '◈ ' : '… ') + (ctx.label || '');
   var lastAssert = null;
-  J().events.forEach(function (e) { if (e.kind === 'assert' && e.t <= clock && clock - e.t < 1100) lastAssert = e; });
+  J().events.forEach(function (e) { if (e.kind === 'assert' && e.t <= c && c - e.t < 1300) lastAssert = e; });
   $('toast').hidden = !lastAssert;
   if (lastAssert) {
     $('toast').className = 'toast' + (lastAssert.status === 'PASS' ? '' : ' bad');
     $('toast').textContent = (lastAssert.status === 'PASS' ? '✓ ' : '✗ ') + lastAssert.label;
   }
-  var frac = (clock / dur()) * 100;
+  var frac = Math.min(1, c / D()) * 100;
   $('prog').style.width = frac + '%';
   $('playhead').style.left = frac + '%';
-  $('scrub').value = Math.round((clock / dur()) * 1000);
-  $('clock').textContent = fmt(Math.min(clock, dur())) + ' / ' + fmt(dur());
+  $('scrub').value = Math.round((c / D()) * 1000);
+  $('clock').textContent = fmt(Math.min(c, D())) + ' / ' + fmt(D());
   var active = null;
   Array.prototype.forEach.call(document.querySelectorAll('#p-steps li'), function (li) {
-    var done = +li.dataset.t <= clock;
+    var done = +li.dataset.t <= c;
     li.classList.toggle('done', done);
     li.classList.remove('active');
     if (done) active = li;
   });
   if (active) active.classList.add('active');
-  $('play').textContent = playing ? '❚❚' : '▶';
+  $('play').textContent = vid.paused ? '▶' : '❚❚';
+  requestAnimationFrame(render);
 }
-function tick(now) {
-  if (playing) {
-    clock += (now - lastTick) * speed;
-    if (clock >= dur()) { if (loop) clock = 0; else { clock = dur(); playing = false; } }
-  }
-  lastTick = now;
-  render();
-  requestAnimationFrame(tick);
+function switchJourney(i) {
+  jIdx = i;
+  vid.pause();
+  vid.src = J().video;
+  vid.loop = loop;
+  vid.playbackRate = speed;
+  vid.load();
+  buildJourneyTabs();
+  buildPanels();
+  vid.addEventListener('loadedmetadata', function once() { vid.removeEventListener('loadedmetadata', once); buildPanels(); }, { once: true });
 }
-function switchJourney(i) { jIdx = i; clock = 0; curFrame = -1; playing = false; buildJourneyTabs(); buildPanels(); render(true); }
 $('jtabs').addEventListener('click', function (e) { var b = e.target.closest('button'); if (b) switchJourney(+b.dataset.i); });
 $('ptabs').addEventListener('click', function (e) {
   var b = e.target.closest('button'); if (!b) return;
   Array.prototype.forEach.call(document.querySelectorAll('.ptabs button'), function (x) { x.classList.toggle('on', x === b); });
   Array.prototype.forEach.call(document.querySelectorAll('.panel'), function (p) { p.classList.toggle('on', p.id === 'p-' + b.dataset.p); });
 });
-$('play').addEventListener('click', function () { playing = !playing; });
+$('play').addEventListener('click', function () { vid.paused ? vid.play() : vid.pause(); });
 $('speed').addEventListener('click', function (e) {
   var b = e.target.closest('button'); if (!b) return;
   speed = +b.dataset.s;
+  vid.playbackRate = speed;
   Array.prototype.forEach.call(document.querySelectorAll('.seg button'), function (x) { x.classList.toggle('on', x === b); });
 });
-$('loopb').addEventListener('click', function () { loop = !loop; this.classList.toggle('on', loop); });
-$('scrub').addEventListener('input', function () { clock = (+this.value / 1000) * dur(); playing = false; });
+$('loopb').addEventListener('click', function () { loop = !loop; vid.loop = loop; this.classList.toggle('on', loop); });
+$('scrub').addEventListener('input', function () { vid.pause(); vid.currentTime = ((+this.value / 1000) * D()) / 1000; });
 document.addEventListener('keydown', function (e) {
-  if (e.key === ' ') { e.preventDefault(); playing = !playing; }
-  if (e.key === 'ArrowRight') { clock = J().frames[Math.min(curFrame + 1, J().frames.length - 1)].t; playing = false; }
-  if (e.key === 'ArrowLeft') { clock = J().frames[Math.max(curFrame - 1, 0)].t; playing = false; }
+  if (e.key === ' ') { e.preventDefault(); vid.paused ? vid.play() : vid.pause(); }
+  if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+    var c = clock(), evs = J().events.map(function (x) { return x.t; });
+    var t = e.key === 'ArrowRight'
+      ? (evs.filter(function (x) { return x > c + 50; })[0] ?? D())
+      : (evs.filter(function (x) { return x < c - 50; }).pop() ?? 0);
+    vid.pause();
+    vid.currentTime = t / 1000;
+  }
 });
-buildJourneyTabs(); buildPanels(); render(true); requestAnimationFrame(function (n) { lastTick = n; requestAnimationFrame(tick); });
+buildJourneyTabs();
+switchJourney(0);
+requestAnimationFrame(render);
 </script>
 </body>
 </html>
 `;
   fs.writeFileSync(path.join(folder, 'REPLAY.html'), html);
-  await tryGif({ folder, journey: jr[0], viewport: replay.viewport });
+  await tryGif({ folder, webm: path.join(folder, replay.journeys[jr[0].name].video), ffmpeg });
 }
 
-// replay.gif — the shareable artifact (GitHub renders it inside REPORT.md and
-// PR descriptions). Needs ffmpeg on PATH; skipped gracefully without it.
-// Overlays are composited into the frames via headless Chromium canvas.
-async function tryGif({ folder, journey, viewport }) {
-  try {
-    execSync('ffmpeg -version', { stdio: 'pipe' });
-  } catch {
+// replay.gif — the shareable artifact (GitHub animates it inside REPORT.md and
+// PR descriptions), rendered straight from the happy-path screen recording.
+async function tryGif({ folder, webm, ffmpeg }) {
+  if (!ffmpeg) {
     console.log('(replay) ffmpeg not found — skipping replay.gif');
     return;
   }
   try {
-    const { chromium } = await import('playwright');
-    const browser = await chromium.launch();
-    const page = await browser.newPage();
-    const tmp = path.join(folder, '.giftmp');
-    fs.mkdirSync(tmp, { recursive: true });
-    const scale = 320 / viewport.width;
-    for (let i = 0; i < journey.frames.length; i++) {
-      const input = journey.events.find(e => e.frame === i && ['tap', 'fill', 'swipe'].includes(e.kind));
-      const png = await page.evaluate(
-        async ({ src, w, h, input }) => {
-          const img = new Image();
-          await new Promise((res, rej) => ((img.onload = res), (img.onerror = rej), (img.src = src)));
-          const c = document.createElement('canvas');
-          c.width = w;
-          c.height = h;
-          const g = c.getContext('2d');
-          g.drawImage(img, 0, 0, w, h);
-          if (input) {
-            const sx = w / img.width, x = input.x * sx, y = input.y * sx;
-            g.strokeStyle = 'rgba(10,12,16,0.45)';
-            g.lineWidth = 3;
-            g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.moveTo(x, 0); g.lineTo(x, h); g.stroke();
-            g.strokeStyle = '#fff';
-            g.lineWidth = 1.5;
-            g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.moveTo(x, 0); g.lineTo(x, h); g.stroke();
-            if (input.kind === 'swipe') {
-              const x2 = input.x2 * sx, y2 = input.y2 * sx;
-              g.strokeStyle = '#fff'; g.lineWidth = 4; g.beginPath(); g.moveTo(x, y); g.lineTo(x2, y2); g.stroke();
-            }
-            g.fillStyle = 'rgba(23,27,33,0.9)';
-            const s = 22;
-            g.beginPath(); g.roundRect(x - s / 2, y - s / 2, s, s, 6); g.fill();
-            g.strokeStyle = '#fff'; g.lineWidth = 2; g.beginPath(); g.roundRect(x - s / 2, y - s / 2, s, s, 6); g.stroke();
-          }
-          return c.toDataURL('image/png');
-        },
-        { src: journey.frames[i].src, w: Math.round(viewport.width * scale), h: Math.round(viewport.height * scale), input }
-      );
-      fs.writeFileSync(path.join(tmp, `f${String(i).padStart(3, '0')}.png`), Buffer.from(png.split(',')[1], 'base64'));
-    }
-    await browser.close();
-    // per-frame durations from real timestamps, capped so long waits don't stall the gif
-    let list = '';
-    for (let i = 0; i < journey.frames.length; i++) {
-      const gap = i + 1 < journey.frames.length ? journey.frames[i + 1].t - journey.frames[i].t : 900;
-      list += `file 'f${String(i).padStart(3, '0')}.png'\nduration ${(Math.min(Math.max(gap, 250), 1400) / 1000).toFixed(2)}\n`;
-    }
-    list += `file 'f${String(journey.frames.length - 1).padStart(3, '0')}.png'\n`;
-    fs.writeFileSync(path.join(tmp, 'list.txt'), list);
     execSync(
-      `ffmpeg -y -f concat -safe 0 -i list.txt -vf "fps=10,split[a][b];[a]palettegen[p];[b][p]paletteuse" ../replay.gif`,
-      { cwd: tmp, stdio: 'pipe' }
+      `ffmpeg -y -i "${webm}" -vf "fps=10,scale=320:-2:flags=lanczos,split[a][b];[a]palettegen[p];[b][p]paletteuse" "${path.join(folder, 'replay.gif')}"`,
+      { stdio: 'pipe' }
     );
-    fs.rmSync(tmp, { recursive: true, force: true });
-    console.log(`(replay) replay.gif written (${journey.name})`);
+    console.log('(replay) replay.gif written');
   } catch (e) {
     console.log('(replay) gif skipped:', String(e).slice(0, 120));
   }

@@ -45,9 +45,9 @@ Copy `references/run-template.mjs` (as `run.mjs`) and `references/report-templat
 - **Stage state through APIs/DB, drive UI only for what the user would do.** Registration flags, onboarding, seed posts — set them up via requests or SQL so each journey spends its time on the promise, not on typing into forms (except the journey whose promise IS the form).
 - **`rec(journey, step, ok, note)` for every step** — every claim in the report is an assertion that ran, pass or fail, never prose.
 - **`shot(page, journey, n, name)` after each user-visible state** — numbered screenshots into `shots/<journey>/`.
-- **Drive inputs through the act helpers** — `tap`/`fillIn`/`swipe`/`navTo`/`pause` instead of raw `page.*`. Each one records a replay frame before and after plus the input's coordinates, which is what powers the replay player's crosshair/tap/swipe overlays and network log. Raw `page.*` still works — those actions just have no overlay. `--no-replay` skips frame capture when you only want the pass.
+- **Drive inputs through the act helpers** — `tap`/`fillIn`/`swipe`/`navTo`/`pause` instead of raw `page.*`. Each journey is **screen-recorded** (real video), and a reticle injected into the live page glides to every input's recorded `boundingBox` coordinate before the click lands — so the recording shows the test happening, cursor and all. The reticle hides during `shot()` so asserted screenshots stay clean; input coordinates land in `replay.json` for the player. Raw `page.*` still works — those actions just aren't narrated. `--no-replay` skips recording when you only want the pass.
 - **A `PROMISES` map** — one sentence per journey, quoted from the ticket. It headlines the TLDR in both reports, so a reviewer reads *what* was proven before *how*.
-- **The report writer** (`report.mjs`) — one call writes every view of the same results: `report.json` (machine), `REPORT.md` (GitHub-renderable: verdict + promises table + before/after pairs + ✅/❌ per step, screenshots inline), `REPORT.html` (interactive certificate — before/after drag-sliders, filmstrips, viewport strip — screenshots *embedded* as downscaled data URIs: one file that renders anywhere; full-res originals stay in `shots/`), and — when the journeys drove through the act helpers — `REPLAY.html`: a scrubbable flipbook player with a video-editor timeline (input + assertion ticks), crosshair overlays at every tap/swipe, a synced assertion ledger, a network log, and per-step timing. With `ffmpeg` on PATH it also emits `replay.gif` (happy-path journey, input overlays burned in) which REPORT.md embeds — GitHub animates it right in the PR. Exit non-zero on any failure.
+- **The report writer** (`report.mjs`) — one call writes every view of the same results: `report.json` (machine), `REPORT.md` (GitHub-renderable: verdict + promises table + before/after pairs + ✅/❌ per step, screenshots inline), `REPORT.html` (interactive certificate — before/after drag-sliders, filmstrips, viewport strip — screenshots *embedded* as downscaled data URIs: one file that renders anywhere; full-res originals stay in `shots/`), and — when the journeys drove through the act helpers — `REPLAY.html`: the run's actual screen recordings wrapped in a scrubbable player (videos embedded as data URIs, mp4 when ffmpeg is available) with a video-editor timeline (input + assertion ticks with recorded coordinates in their tooltips), a synced assertion ledger, a network log, and per-step timing. With `ffmpeg` on PATH it also emits `replay.gif` straight from the happy-path recording, which REPORT.md embeds — GitHub animates it right in the PR. Exit non-zero on any failure.
 
 ### 4. Run until green — then LOOK at the screenshots
 
@@ -86,12 +86,12 @@ Commit the whole folder with the PR:
   report.mjs         # the report writer (verbatim from the template)
   viewports.mjs      # the size sweep
   report.json        # machine-readable results
-  replay.json        # frame + input + network log (drives the player)
+  replay.json        # input + network event log (drives the player)
   REPORT.md          # TLDR verdict + before/after + ✅/❌ per step — renders in the PR
   REPORT.html        # interactive certificate: sliders, filmstrips — open locally
-  REPLAY.html        # scrubbable journey replay: overlays, timeline, network
-  replay.gif         # (with ffmpeg) happy-path replay — animates in the PR
-  frames/<journey>/  # replay frames (dpr-1 jpegs)
+  REPLAY.html        # the run's screen recordings in a scrubbable player
+  replay.gif         # (with ffmpeg) happy-path recording — animates in the PR
+  videos/<j>.webm    # raw screen recordings, one per journey
   shots/<journey>/   # numbered screenshots
   shots-baseline/    # (optional) merge-base captures for before/after pairs
   shots/viewports/   # one per size
@@ -104,7 +104,7 @@ Paste REPORT.md's TLDR block (verdict line + promises table) into the PR descrip
 1. **Never mock the network layer.** The runner hits the same server a user would. If the app needs external services you can't run, stage their *effects* in the DB — don't stub the app's own API.
 2. **Assert, then screenshot.** A screenshot without an assertion is decoration; an assertion without a screenshot is unreviewable. (Baseline shots are the one sanctioned exception: capture-only by design, each one exists to pair with an asserted after-shot.)
 3. **Negative journeys are mandatory** for anything that filters, gates, hides, or permissions.
-4. **Deterministic reruns.** Prefix + purge test users; never depend on data an earlier run left behind; pin theme/locale via `localStorage` init scripts so screenshots are stable. Replay artifacts (`frames/`, `replay.json`, `REPLAY.html`, `replay.gif`) are context, not claims — they're exempt from byte-stability since timestamps and visible clocks differ per run; pin the app clock too if you want them stable.
+4. **Deterministic reruns.** Prefix + purge test users; never depend on data an earlier run left behind; pin theme/locale via `localStorage` init scripts so screenshots are stable. Replay artifacts (`videos/`, `replay.json`, `REPLAY.html`, `replay.gif`) are context, not claims — they're exempt from byte-stability since timestamps and visible clocks differ per run; pin the app clock too if you want them stable.
 5. **The suite exits non-zero on any failure** — wire it into CI or a pre-merge checklist if you want, but at minimum run it at review and commit the green report.
 6. **100% or not done.** A journey suite at 24/26 is a task at 0%. Fix the harness or fix the feature — the report never merges red.
 

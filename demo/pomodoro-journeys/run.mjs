@@ -1,14 +1,12 @@
 // /proof demo — user journeys for the wedge pomodoro app (demo/pomodoro-app).
 // Self-contained: spawns a static server for the app, drives it in real Chrome
-// at phone size, asserts every step, screenshots every state, writes
-// report.json + REPORT.md + REPORT.html + REPLAY.html (+ replay.gif w/ ffmpeg).
+// at phone size, asserts every step, screenshots every state, and SCREEN-
+// RECORDS every journey — a reticle injected into the live page glides to
+// each input before it lands, so the video shows the test happening.
+// Writes report.json + REPORT.md + REPORT.html + REPLAY.html (+ replay.gif).
 //   node demo/pomodoro-journeys/run.mjs              # prove this build
 //   node demo/pomodoro-journeys/run.mjs --baseline   # capture the merge-base
-//   node demo/pomodoro-journeys/run.mjs --no-replay  # skip frame capture
-// The baseline run drives demo/pomodoro-app-baseline (the build the ticket
-// "auto break handoff + persistent daily slices" started from), capture-only,
-// into shots-baseline/. The next normal run pairs the shots into the
-// before/after section of both reports.
+//   node demo/pomodoro-journeys/run.mjs --no-replay  # skip video recording
 import { chromium } from 'playwright';
 import { spawn } from 'child_process';
 import fs from 'fs';
@@ -26,41 +24,110 @@ const VIEWPORT = { width: 390, height: 844 };
 const results = [];
 let browser;
 
-// ── replay capture: frames + input log → REPLAY.html ────────────────────────
+// ── replay capture: screen-recorded video + input log → REPLAY.html ─────────
+// The run is actually recorded: each journey's context captures video, and a
+// reticle injected into the live page (pointer-events: none) glides to every
+// recorded input coordinate before the click lands. Real datapoints: every
+// target is the element's boundingBox center, logged to replay.json for the
+// player's timeline, ledger sync, and HUD. Hidden during shot() so asserted
+// evidence screenshots stay clean. Off in --baseline or with --no-replay.
 const REPLAY = !BASELINE && !ARGS.includes('--no-replay');
 const replays = {};
-const rp = j => (replays[j] ??= { t0: Date.now(), frames: [], events: [], net: [] });
-async function frame(page, j) {
-  if (!REPLAY) return;
-  const r = rp(j);
-  const buf = await page.screenshot({ type: 'jpeg', quality: 70, scale: 'css' }).catch(() => null);
-  if (!buf) return;
-  const rel = `frames/${j}/${String(r.frames.length).padStart(3, '0')}.jpg`;
-  fs.mkdirSync(path.join(FOLDER, 'frames', j), { recursive: true });
-  fs.writeFileSync(path.join(FOLDER, rel), buf);
-  r.frames.push({ t: Date.now() - r.t0, f: rel });
-}
+const rp = j => (replays[j] ??= { t0: Date.now(), events: [], net: [] });
 const ev = (j, e) => {
-  if (REPLAY) rp(j).events.push({ t: Date.now() - rp(j).t0, frame: rp(j).frames.length - 1, ...e });
+  if (REPLAY) rp(j).events.push({ t: Date.now() - rp(j).t0, ...e });
 };
+const CURSOR_INIT = () => {
+  if (window.__pfInit) return;
+  window.__pfInit = true;
+  const boot = () => {
+    const w = document.createElement('div');
+    w.id = '__pf';
+    w.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:2147483647';
+    w.innerHTML =
+      '<div id="__pfh" style="position:absolute;left:0;right:0;height:1px;background:rgba(255,255,255,.95);box-shadow:0 0 0 .5px rgba(8,10,14,.5)"></div>' +
+      '<div id="__pfv" style="position:absolute;top:0;bottom:0;width:1px;background:rgba(255,255,255,.95);box-shadow:0 0 0 .5px rgba(8,10,14,.5)"></div>' +
+      '<div id="__pfp" style="position:absolute;width:30px;height:30px;border-radius:12px;border:2.5px solid #fff;transform:translate(-50%,-50%);opacity:0"></div>' +
+      '<div id="__pfr" style="position:absolute;width:30px;height:30px;border-radius:10px;border:2px solid #fff;background:rgba(14,16,20,.55);box-shadow:0 2px 12px rgba(8,10,14,.5);transform:translate(-50%,-50%);display:grid;place-items:center;color:#fff;font:700 12px ui-monospace,monospace">●</div>';
+    document.body.appendChild(w);
+    let pos = null;
+    try { pos = JSON.parse(sessionStorage.__pfpos); } catch { /* first page */ }
+    pos = pos || { x: innerWidth / 2, y: innerHeight / 2 };
+    const apply = () => {
+      w.querySelector('#__pfh').style.top = pos.y + 'px';
+      w.querySelector('#__pfv').style.left = pos.x + 'px';
+      const r = w.querySelector('#__pfr');
+      r.style.left = pos.x + 'px';
+      r.style.top = pos.y + 'px';
+    };
+    apply();
+    const ease = t => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
+    window.__pfMove = (x, y, ms, glyph) =>
+      new Promise(done => {
+        if (glyph) w.querySelector('#__pfr').textContent = glyph;
+        const from = { ...pos };
+        const t0 = performance.now();
+        const step = now => {
+          const k = ms ? Math.min(1, (now - t0) / ms) : 1;
+          pos = { x: from.x + (x - from.x) * ease(k), y: from.y + (y - from.y) * ease(k) };
+          apply();
+          if (k < 1) requestAnimationFrame(step);
+          else {
+            sessionStorage.__pfpos = JSON.stringify(pos);
+            done();
+          }
+        };
+        requestAnimationFrame(step);
+      });
+    window.__pfPulse = () => {
+      const p = w.querySelector('#__pfp');
+      p.style.left = pos.x + 'px';
+      p.style.top = pos.y + 'px';
+      p.animate(
+        [
+          { opacity: 1, transform: 'translate(-50%,-50%) scale(1)' },
+          { opacity: 0, transform: 'translate(-50%,-50%) scale(2.4)' },
+        ],
+        { duration: 420, easing: 'ease-out' }
+      );
+    };
+    window.__pfHide = () => (w.style.display = 'none');
+    window.__pfShow = () => (w.style.display = '');
+  };
+  if (document.body) boot();
+  else addEventListener('DOMContentLoaded', boot);
+};
+const cursor = (page, fn, args) => (REPLAY ? page.evaluate(fn, args).catch(() => {}) : null);
 async function tap(page, j, selector, label = '') {
   const el = page.locator(selector).first();
   const box = await el.boundingBox().catch(() => null);
-  await frame(page, j);
-  ev(j, { kind: 'tap', x: box ? box.x + box.width / 2 : 0, y: box ? box.y + box.height / 2 : 0, label });
+  const x = box ? box.x + box.width / 2 : 0;
+  const y = box ? box.y + box.height / 2 : 0;
+  await cursor(page, p => window.__pfMove && window.__pfMove(p.x, p.y, 350, '●'), { x, y });
+  ev(j, { kind: 'tap', x, y, label });
   await el.click();
+  await cursor(page, () => window.__pfPulse && window.__pfPulse());
   await page.waitForTimeout(250);
-  await frame(page, j);
 }
 async function navTo(page, j, url, label = '') {
   await page.goto(url, { waitUntil: 'networkidle' });
-  await frame(page, j);
   ev(j, { kind: 'nav', label: label || url.replace(BASE, '') || '/' });
 }
 async function pause(page, j, ms, label = '') {
   await page.waitForTimeout(ms);
   ev(j, { kind: 'wait', label: label || `${ms}ms` });
-  await frame(page, j);
+}
+/** Close a session and bank its screen recording as videos/<journey>.webm. */
+async function closeSession(s, j) {
+  const video = REPLAY ? s.page.video() : null;
+  await s.ctx.close();
+  if (video) {
+    fs.mkdirSync(path.join(FOLDER, 'videos'), { recursive: true });
+    const rel = `videos/${j}.webm`;
+    await video.saveAs(path.join(FOLDER, rel));
+    await video.delete().catch(() => {});
+    rp(j).video = rel;
+  }
 }
 
 function dir(j) {
@@ -75,11 +142,12 @@ function rec(j, step, ok, note = '') {
 }
 async function shot(page, j, idx, name) {
   await page.waitForTimeout(400);
+  await cursor(page, () => window.__pfHide && window.__pfHide());
   await page.screenshot({
     path: path.join(dir(j), String(idx).padStart(2, '0') + '-' + name + '.png'),
     fullPage: false,
   });
-  await frame(page, j);
+  await cursor(page, () => window.__pfShow && window.__pfShow());
   ev(j, { kind: 'shot', label: name });
 }
 
@@ -87,10 +155,13 @@ async function freshSession(j) {
   const ctx = await browser.newContext({
     viewport: VIEWPORT,
     deviceScaleFactor: 2,
+    ...(REPLAY ? { recordVideo: { dir: path.join(FOLDER, 'videos'), size: VIEWPORT } } : {}),
   });
   // Baseline drives a build the feature doesn't exist on — fail fast, not 30s.
   if (BASELINE) ctx.setDefaultTimeout(3000);
+  if (REPLAY) await ctx.addInitScript(CURSOR_INIT);
   const page = await ctx.newPage();
+  if (REPLAY) rp(j).t0 = Date.now(); // align the event clock with the recording
   page.on('pageerror', e => rec(j, '(pageerror)', false, e.message.slice(0, 140)));
   if (REPLAY)
     page.on('response', res => {
@@ -137,7 +208,7 @@ J('01-focus-cycle', async () => {
   rec(j, 'completion hands off to Break automatically', /break/i.test(await modeText(s.page)));
   rec(j, 'break block queued at full 00:03', (await timeText(s.page)) === '00:03');
   await shot(s.page, j, 3, 'break-queued');
-  await s.ctx.close();
+  await closeSession(s, j);
 });
 
 // 02 — pause freezes the wedge exactly; resume continues from there.
@@ -158,7 +229,7 @@ J('02-pause-resume', async () => {
   await pause(s.page, j, 1250, 'countdown resumes');
   rec(j, 'resume continues the countdown', (await timeText(s.page)) < frozen);
   await shot(s.page, j, 2, 'resumed');
-  await s.ctx.close();
+  await closeSession(s, j);
 });
 
 // 03 — earned slices persist: a completed focus block survives a reload.
@@ -183,7 +254,7 @@ J('03-slices-persist', async () => {
   rec(j, 'the earned slice survives a reload', (await s.page.locator('[data-testid="slice-done"]').count()) === 1);
   rec(j, 'empty-state prompt stays gone', !(await s.page.locator('[data-testid="slices-empty"]').isVisible()));
   await shot(s.page, j, 2, 'slice-persists-after-reload');
-  await s.ctx.close();
+  await closeSession(s, j);
 });
 
 // 04 — negative/guard: reset restores the FULL block and never awards a slice.
@@ -198,7 +269,7 @@ J('04-reset-no-credit', async () => {
   rec(j, 'control returns to Start', (await startLabel(s.page)) === 'Start');
   rec(j, 'no slice awarded for an abandoned block', (await s.page.locator('[data-testid="slice-done"]').count()) === 0);
   await shot(s.page, j, 1, 'reset-full-block');
-  await s.ctx.close();
+  await closeSession(s, j);
 });
 
 async function main() {
