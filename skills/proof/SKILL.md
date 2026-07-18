@@ -99,11 +99,13 @@ Commit the whole folder with the PR:
 
 Paste REPORT.md's TLDR block (verdict line + promises table) into the PR description. The reviewer should be able to judge the feature from the proof pack without checking out the branch.
 
-**Always link the proof in the chat.** Your final message after a run must contain clickable links to the evidence — never make the user ask where it is:
+**Commit the ENTIRE pack — never .gitignore any of it.** `videos/*.webm` and `REPLAY.html` are evidence, not build output: the webms are a few hundred KB each and REPLAY.html is the only place a reviewer can watch the run. "Regenerate locally from replay.json" is a lie the moment the run happened in an ephemeral environment — the recordings cannot be regenerated, only re-run. If pack size genuinely worries you, shorten journeys; do not drop artifacts. A REPORT.md whose replay link 404s in the PR is a broken proof.
 
-- Link the pack files as markdown links: `[REPORT.md](<feature>-journeys/REPORT.md)`, `[REPORT.html](<feature>-journeys/REPORT.html)`, and `[REPLAY.html](<feature>-journeys/REPLAY.html)`.
+**Always deliver a viewable proof URL in the chat.** Your final message after a run must lead with clickable links to the evidence — never make the user ask where it is, and never substitute a PR link (GitHub renders REPORT.md but NOT REPLAY.html; a PR link is not a proof link):
+
+- Lead with the replay: `[REPLAY.html](<feature>-journeys/REPLAY.html)` — a reviewer watching the recording is the fastest path to trust — then `[REPORT.html](...)` and `[REPORT.md](...)` as file links.
 - If a local server is serving the pack (e.g. a preview panel needs localhost), link the full URL too: `http://localhost:<port>/REPLAY.html`.
-- Lead with the replay link — a reviewer watching the recording is the fastest path to trust.
+- If the pack exists only on a branch/remote (cloud run, worktree), produce a URL the user can actually open before ending the turn: check the pack out locally and link the files, serve it, or publish a self-contained preview — REPLAY.html and REPORT.html embed their media precisely so they stay viewable anywhere.
 
 ## Rules
 
@@ -113,6 +115,7 @@ Paste REPORT.md's TLDR block (verdict line + promises table) into the PR descrip
 4. **Deterministic reruns.** Prefix + purge test users; never depend on data an earlier run left behind; pin theme/locale via `localStorage` init scripts so screenshots are stable. Replay artifacts (`videos/`, `replay.json`, `REPLAY.html`, `replay.gif`) are context, not claims — they're exempt from byte-stability since timestamps and visible clocks differ per run; pin the app clock too if you want them stable.
 5. **The suite exits non-zero on any failure** — wire it into CI or a pre-merge checklist if you want, but at minimum run it at review and commit the green report.
 6. **100% or not done.** A journey suite at 24/26 is a task at 0%. Fix the harness or fix the feature — the report never merges red.
+7. **The pack ships whole, and the chat gets the URL.** Every generated artifact — `videos/`, `REPLAY.html` included — is committed; nothing in the pack is ever `.gitignore`d. The run's final chat message leads with a clickable, actually-openable link to the replay (file link, localhost URL, or published preview) — a PR link alone does not count.
 
 ## Gotchas that have burned real reviews
 
