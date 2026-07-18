@@ -467,7 +467,7 @@ async function writeReplay({ folder, base, title, generated, replay, journeys, p
 
   .stage { display: flex; gap: 24px; align-items: stretch; padding: 18px; flex: 1; min-height: 0; }
   .devcol { flex: none; height: 100%; min-height: 0; }
-  @media (max-width: 840px) {
+  @media (max-width: 660px) {
     body { height: auto; overflow: auto; display: block; }
     .stage { flex-direction: column; }
     .devcol { height: auto; }
