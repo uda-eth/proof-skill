@@ -99,6 +99,12 @@ Commit the whole folder with the PR:
 
 Paste REPORT.md's TLDR block (verdict line + promises table) into the PR description. The reviewer should be able to judge the feature from the proof pack without checking out the branch.
 
+**Always link the proof in the chat.** Your final message after a run must contain clickable links to the evidence — never make the user ask where it is:
+
+- Link the pack files as markdown links: `[REPORT.md](<feature>-journeys/REPORT.md)`, `[REPORT.html](<feature>-journeys/REPORT.html)`, and `[REPLAY.html](<feature>-journeys/REPLAY.html)`.
+- If a local server is serving the pack (e.g. a preview panel needs localhost), link the full URL too: `http://localhost:<port>/REPLAY.html`.
+- Lead with the replay link — a reviewer watching the recording is the fastest path to trust.
+
 ## Rules
 
 1. **Never mock the network layer.** The runner hits the same server a user would. If the app needs external services you can't run, stage their *effects* in the DB — don't stub the app's own API.
