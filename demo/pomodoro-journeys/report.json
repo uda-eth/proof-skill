@@ -1,7 +1,7 @@
 {
   "title": "wedge pomodoro user journeys",
   "base": "http://localhost:4173",
-  "generated": "2026-07-17",
+  "generated": "2026-07-18",
   "verdict": "PROVEN",
   "pass": 17,
   "fail": 0,
