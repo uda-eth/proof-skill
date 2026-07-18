@@ -36,7 +36,7 @@ const VIEWPORT = { width: 390, height: 844 }; // phone frame: proof looks like t
 const results = [];
 let browser;
 
-// ── replay capture: screen-recorded video + input log → REPLAY.html ─────────
+// ── replay capture: screen-recorded video + input log → the REPORT.html player ─────────
 // The run is actually RECORDED. Each journey's context captures real video,
 // and a reticle injected into the live page (pointer-events: none) glides to
 // every input's recorded coordinate before the click lands — so the video

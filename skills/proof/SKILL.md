@@ -47,7 +47,7 @@ Copy `references/run-template.mjs` (as `run.mjs`) and `references/report-templat
 - **`shot(page, journey, n, name)` after each user-visible state** — numbered screenshots into `shots/<journey>/`.
 - **Drive inputs through the act helpers** — `tap`/`fillIn`/`swipe`/`navTo`/`pause` instead of raw `page.*`. Each journey is **screen-recorded** (real video), and a reticle injected into the live page glides to every input's recorded `boundingBox` coordinate before the click lands — so the recording shows the test happening, cursor and all. The reticle hides during `shot()` so asserted screenshots stay clean; input coordinates land in `replay.json` for the player. Raw `page.*` still works — those actions just aren't narrated. `--no-replay` skips recording when you only want the pass.
 - **A `PROMISES` map** — one sentence per journey, quoted from the ticket. It headlines the TLDR in both reports, so a reviewer reads *what* was proven before *how*.
-- **The report writer** (`report.mjs`) — one call writes every view of the same results: `report.json` (machine), `REPORT.md` (GitHub-renderable: verdict + promises table + before/after pairs + ✅/❌ per step, screenshots inline), `REPORT.html` (interactive certificate — before/after drag-sliders, filmstrips, viewport strip — screenshots *embedded* as downscaled data URIs: one file that renders anywhere; full-res originals stay in `shots/`), and — when the journeys drove through the act helpers — `REPLAY.html`: the run's actual screen recordings wrapped in a scrubbable player (videos embedded as data URIs, mp4 when ffmpeg is available) with a video-editor timeline (input + assertion ticks with recorded coordinates in their tooltips), a synced assertion ledger, a network log, and per-step timing. With `ffmpeg` on PATH it also emits `replay.gif` straight from the happy-path recording, which REPORT.md embeds — GitHub animates it right in the PR. Exit non-zero on any failure.
+- **The report writer** (`report.mjs`) — one call writes every view of the same results: `report.json` (machine), `REPORT.md` (GitHub-renderable: verdict + replay.gif + promises table + before/after pairs + ✅/❌ per step, screenshots inline), and `REPORT.html` — **THE proof page, one system, one self-contained file**: the run's real screen recordings in a scrubbable player up top (video-editor timeline with input + assertion ticks carrying recorded coordinates, synced assertion ledger, network log, per-step timing), then the evidence below — verdict stamp, TL;DR promises, before/after drag-sliders, journey ledgers with filmstrips, viewport strip. Everything embedded as data URIs (videos as mp4 when ffmpeg is available), so the single file renders anywhere. With `ffmpeg` on PATH it also emits `replay.gif` straight from the happy-path recording, which REPORT.md embeds — GitHub animates it right in the PR. Exit non-zero on any failure.
 
 ### 4. Run until green — then LOOK at the screenshots
 
@@ -87,9 +87,8 @@ Commit the whole folder with the PR:
   viewports.mjs      # the size sweep
   report.json        # machine-readable results
   replay.json        # input + network event log (drives the player)
-  REPORT.md          # TLDR verdict + before/after + ✅/❌ per step — renders in the PR
-  REPORT.html        # interactive certificate: sliders, filmstrips — open locally
-  REPLAY.html        # the run's screen recordings in a scrubbable player
+  REPORT.md          # TLDR verdict + replay.gif + before/after + ✅/❌ per step — renders in the PR
+  REPORT.html        # THE proof page: recordings player + stamp + sliders + ledgers — one file
   replay.gif         # (with ffmpeg) happy-path recording — animates in the PR
   videos/<j>.webm    # raw screen recordings, one per journey
   shots/<journey>/   # numbered screenshots
@@ -99,23 +98,23 @@ Commit the whole folder with the PR:
 
 Paste REPORT.md's TLDR block (verdict line + promises table) into the PR description. The reviewer should be able to judge the feature from the proof pack without checking out the branch.
 
-**Commit the ENTIRE pack — never .gitignore any of it.** `videos/*.webm` and `REPLAY.html` are evidence, not build output: the webms are a few hundred KB each and REPLAY.html is the only place a reviewer can watch the run. "Regenerate locally from replay.json" is a lie the moment the run happened in an ephemeral environment — the recordings cannot be regenerated, only re-run. If pack size genuinely worries you, shorten journeys; do not drop artifacts. A REPORT.md whose replay link 404s in the PR is a broken proof.
+**Commit the ENTIRE pack — never .gitignore any of it.** `videos/*.webm` and `REPORT.html` are evidence, not build output: the webms are a few hundred KB each and REPORT.html is the only place a reviewer can watch the run. "Regenerate locally from replay.json" is a lie the moment the run happened in an ephemeral environment — the recordings cannot be regenerated, only re-run. If pack size genuinely worries you, shorten journeys; do not drop artifacts. A REPORT.md whose proof-page link 404s in the PR is a broken proof.
 
-**Always deliver a viewable proof URL in the chat.** Your final message after a run must lead with clickable links to the evidence — never make the user ask where it is, and never substitute a PR link (GitHub renders REPORT.md but NOT REPLAY.html; a PR link is not a proof link):
+**Always deliver a viewable proof URL in the chat.** Your final message after a run must lead with clickable links to the evidence — never make the user ask where it is, and never substitute a PR link (GitHub renders REPORT.md but NOT REPORT.html; a PR link is not a proof link):
 
-- Lead with the replay: `[REPLAY.html](<feature>-journeys/REPLAY.html)` — a reviewer watching the recording is the fastest path to trust — then `[REPORT.html](...)` and `[REPORT.md](...)` as file links.
-- If a local server is serving the pack (e.g. a preview panel needs localhost), link the full URL too: `http://localhost:<port>/REPLAY.html`.
-- If the pack exists only on a branch/remote (cloud run, worktree), produce a URL the user can actually open before ending the turn: check the pack out locally and link the files, serve it, or publish a self-contained preview — REPLAY.html and REPORT.html embed their media precisely so they stay viewable anywhere.
+- Lead with the proof page: `[REPORT.html](<feature>-journeys/REPORT.html)` — a reviewer watching the recording is the fastest path to trust — then `[REPORT.md](...)` as a file link.
+- If a local server is serving the pack (e.g. a preview panel needs localhost), link the full URL too: `http://localhost:<port>/REPORT.html`.
+- If the pack exists only on a branch/remote (cloud run, worktree), produce a URL the user can actually open before ending the turn: check the pack out locally and link the file, serve it, or publish a self-contained preview — REPORT.html embeds all its media precisely so it stays viewable anywhere.
 
 ## Rules
 
 1. **Never mock the network layer.** The runner hits the same server a user would. If the app needs external services you can't run, stage their *effects* in the DB — don't stub the app's own API.
 2. **Assert, then screenshot.** A screenshot without an assertion is decoration; an assertion without a screenshot is unreviewable. (Baseline shots are the one sanctioned exception: capture-only by design, each one exists to pair with an asserted after-shot.)
 3. **Negative journeys are mandatory** for anything that filters, gates, hides, or permissions.
-4. **Deterministic reruns.** Prefix + purge test users; never depend on data an earlier run left behind; pin theme/locale via `localStorage` init scripts so screenshots are stable. Replay artifacts (`videos/`, `replay.json`, `REPLAY.html`, `replay.gif`) are context, not claims — they're exempt from byte-stability since timestamps and visible clocks differ per run; pin the app clock too if you want them stable.
+4. **Deterministic reruns.** Prefix + purge test users; never depend on data an earlier run left behind; pin theme/locale via `localStorage` init scripts so screenshots are stable. Replay artifacts (`videos/`, `replay.json`, `replay.gif`, and the player portion of `REPORT.html`) are context, not claims — they're exempt from byte-stability since timestamps and visible clocks differ per run; pin the app clock too if you want them stable.
 5. **The suite exits non-zero on any failure** — wire it into CI or a pre-merge checklist if you want, but at minimum run it at review and commit the green report.
 6. **100% or not done.** A journey suite at 24/26 is a task at 0%. Fix the harness or fix the feature — the report never merges red.
-7. **The pack ships whole, and the chat gets the URL.** Every generated artifact — `videos/`, `REPLAY.html` included — is committed; nothing in the pack is ever `.gitignore`d. The run's final chat message leads with a clickable, actually-openable link to the replay (file link, localhost URL, or published preview) — a PR link alone does not count.
+7. **The pack ships whole, and the chat gets the URL.** Every generated artifact — `videos/` and `REPORT.html` included — is committed; nothing in the pack is ever `.gitignore`d. The run's final chat message leads with a clickable, actually-openable link to the proof page (file link, localhost URL, or published preview) — a PR link alone does not count.
 
 ## Gotchas that have burned real reviews
 

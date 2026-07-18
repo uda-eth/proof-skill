@@ -3,7 +3,7 @@
 // at phone size, asserts every step, screenshots every state, and SCREEN-
 // RECORDS every journey — a reticle injected into the live page glides to
 // each input before it lands, so the video shows the test happening.
-// Writes report.json + REPORT.md + REPORT.html + REPLAY.html (+ replay.gif).
+// Writes report.json + REPORT.md + the REPORT.html proof page (+ replay.gif).
 //   node demo/pomodoro-journeys/run.mjs              # prove this build
 //   node demo/pomodoro-journeys/run.mjs --baseline   # capture the merge-base
 //   node demo/pomodoro-journeys/run.mjs --no-replay  # skip video recording
@@ -24,7 +24,7 @@ const VIEWPORT = { width: 390, height: 844 };
 const results = [];
 let browser;
 
-// ── replay capture: screen-recorded video + input log → REPLAY.html ─────────
+// ── replay capture: screen-recorded video + input log → the REPORT.html player ─────────
 // The run is actually recorded: each journey's context captures video, and a
 // reticle injected into the live page (pointer-events: none) glides to every
 // recorded input coordinate before the click lands. Real datapoints: every
