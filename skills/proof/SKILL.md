@@ -23,6 +23,13 @@ Read the ticket/PR description and write down every promise it makes to a user. 
 
 Do NOT skip a journey because an integration test covers the same endpoint. The journey is testing the promise, not the endpoint.
 
+**Drive every journey to its OUTCOME — the button is not the feature.** The single most common way a proof lies: it clicks the trigger and stops. "Connect GitHub" renders and the click lands ✅ — but the journey never drove the connect flow, so the recording shows a button and a spinner and nothing else, and the integration was never actually proven to work. Do not do this. Each journey continues past the trigger through the *entire process* to the finished, working result, and asserts *that result*:
+
+- **Follow the whole flow.** Click "Connect GitHub" → complete the connect/OAuth/callback → land on the connected state → assert the repo is actually linked and a sync actually moved data. Click "Add DNS record" → submit the form → wait for it to provision → assert the record exists and reads back as active. The proof is the end state, not the entry point.
+- **Both directions for two-way features.** A sync, import/export, or mirror is two promises — prove each way (local→remote *and* remote→local), each with its own assertion, or it's half-proven.
+- **External providers: drive the round trip or stage its effect, then assert the return.** OAuth popups, DNS APIs, payment redirects — never stop at "redirected to the provider." Drive the callback (or seed its result via API/DB) and assert your app reflects the connected/configured state. A screen recording that ends at the redirect proves nothing.
+- **If it can't be driven end to end, say so — don't dress up a partial run as PROVEN.** A journey that only reaches the trigger is a FAIL, not a pass.
+
 ### 2. Stand up the REAL app — and verify it's YOUR code
 
 Run the real dev server against a real database. No mocks, no fixtures-only mode, no storybook.
@@ -56,6 +63,7 @@ Rerun the suite until every assertion passes. Then open the screenshots and look
 - Is the feature actually **visible**, or is it below the fold / behind an onboarding takeover / under a modal? A DOM-presence assertion passes either way; the screenshot doesn't lie.
 - Does it look like the product (theme, fonts, avatars, imagery) or like a skeleton? Decorate journey users (avatars, real-looking content) so the shots are shippable in a PR.
 - If a screenshot doesn't show what its step name claims, fix the harness (dismiss the takeover, scroll, wait) and rerun.
+- **Watch the recording end to end: does it show the feature WORKING, or does it stop at the button?** If the video ends at the click — the connect button, the submit, the redirect — the journey is incomplete. Drive the flow to its finished result, re-record, and confirm the recording shows the actual working outcome (repo linked and syncing, DNS record live, order placed). A recording that ends at the trigger is not proof.
 
 ### 5. Sweep viewports
 
@@ -110,6 +118,7 @@ Paste REPORT.md's TLDR block (verdict line + promises table) into the PR descrip
 
 1. **Never mock the network layer.** The runner hits the same server a user would. If the app needs external services you can't run, stage their *effects* in the DB — don't stub the app's own API.
 2. **Assert, then screenshot.** A screenshot without an assertion is decoration; an assertion without a screenshot is unreviewable. (Baseline shots are the one sanctioned exception: capture-only by design, each one exists to pair with an asserted after-shot.)
+2b. **Prove the outcome, record the whole process.** Every journey drives the feature to its finished, working result and asserts *that result* — not that the trigger renders. The recording must show the full process end to end (trigger → flow → confirmed working state), both directions for two-way features. "The button is there and I clicked it" is never proof the feature works.
 3. **Negative journeys are mandatory** for anything that filters, gates, hides, or permissions.
 4. **Deterministic reruns.** Prefix + purge test users; never depend on data an earlier run left behind; pin theme/locale via `localStorage` init scripts so screenshots are stable. Replay artifacts (`videos/`, `replay.json`, `replay.gif`, and the player portion of `REPORT.html`) are context, not claims — they're exempt from byte-stability since timestamps and visible clocks differ per run; pin the app clock too if you want them stable.
 5. **The suite exits non-zero on any failure** — wire it into CI or a pre-merge checklist if you want, but at minimum run it at review and commit the green report.

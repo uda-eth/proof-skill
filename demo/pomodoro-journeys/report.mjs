@@ -244,6 +244,7 @@ export async function writeReports({ folder, base, title = 'user journeys', resu
       <div class="trackwrap"><div class="track"><div class="prog" id="prog"></div><div class="ticks" id="ticks"></div><div class="playhead" id="playhead"></div></div><input type="range" id="scrub" min="0" max="1000" value="0" aria-label="scrub timeline"></div>
       <span class="clock" id="clock"></span>
       <button class="tbtn on" id="loopb" title="loop">⟲</button>
+      <button class="tbtn" id="fs" title="fullscreen (f)">⛶</button>
     </div>
   </div>
   <p class="playhint"><kbd>space</kbd> play/pause · <kbd>←</kbd><kbd>→</kbd> jump events · drag the timeline · scroll for the full evidence ↓</p>`;
@@ -296,14 +297,19 @@ export async function writeReports({ folder, base, title = 'user journeys', resu
   /* desktop device: the phone bezel becomes a browser window, panels drop below */
   .chrome { display: none; }
   .player.dev-desktop .stage { flex-direction: column; }
-  .player.dev-desktop .devcol { flex: 1; min-height: 0; width: 100%; height: auto; display: flex; }
-  .player.dev-desktop .bezel { flex: 1; min-height: 0; margin: auto; padding: 0; border-radius: 12px; background: #0b0d11; box-shadow: 0 18px 40px -20px rgba(0,0,0,0.8), inset 0 0 0 1px var(--line); display: flex; flex-direction: column; height: 100%; max-width: 100%; }
+  .player.dev-desktop .devcol { flex: 1; min-height: 0; width: 100%; height: auto; display: flex; align-items: center; justify-content: center; }
+  .player.dev-desktop .bezel { height: 100%; max-width: 100%; margin: 0; padding: 0; border-radius: 12px; background: #0b0d11; box-shadow: 0 18px 40px -20px rgba(0,0,0,0.8), inset 0 0 0 1px var(--line); display: flex; flex-direction: column; }
   .player.dev-desktop .chrome { display: flex; align-items: center; gap: 7px; padding: 9px 13px; border-bottom: 1px solid var(--line); flex: none; }
   .player.dev-desktop .chrome .tl { width: 11px; height: 11px; border-radius: 50%; background: #3a4048; }
-  .player.dev-desktop .chrome .url { margin-left: 10px; font: 500 11px var(--mono); color: var(--mute); background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 3px 11px; max-width: 62%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .player.dev-desktop .screen { flex: 1; min-height: 0; width: 100%; height: auto; aspect-ratio: auto; border-radius: 0 0 11px 11px; }
-  .player.dev-desktop .screen video { object-fit: contain; background: #0b0d11; }
-  .player.dev-desktop .side { flex: none; height: 232px; }
+  .player.dev-desktop .chrome .url { margin-left: 10px; font: 500 11px var(--mono); color: var(--mute); background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 3px 11px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* window hugs the video — flex gives it the media-area height, aspect-ratio
+     derives its width, align-self:center stops it stretching wide (no side bars) */
+  .player.dev-desktop .screen { flex: 1; min-height: 0; width: auto; align-self: center; max-width: 100%; border-radius: 0 0 11px 11px; }
+  .player.dev-desktop .screen video { width: 100%; height: 100%; object-fit: cover; }
+  .player.dev-desktop .side { flex: none; height: 200px; }
+  /* fullscreen: fill the display, letterbox the recording, keep the HUD overlays */
+  .screen:fullscreen { aspect-ratio: auto; width: 100vw; height: 100vh; background: #000; display: flex; align-items: center; justify-content: center; border-radius: 0; }
+  .screen:fullscreen video { width: 100%; height: 100%; object-fit: contain; }
   .chip { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); max-width: 86%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font: 700 10.5px var(--mono); letter-spacing: 0.06em; padding: 5px 11px; border-radius: 999px; background: rgba(10,12,16,0.82); color: #fff; border: 1px solid rgba(255,255,255,0.22); pointer-events: none; }
   .hud { position: absolute; left: 10px; bottom: 10px; font: 600 10px var(--mono); letter-spacing: 0.04em; padding: 4px 8px; border-radius: 6px; background: rgba(10,12,16,0.82); color: #cfd4db; border: 1px solid rgba(255,255,255,0.16); font-variant-numeric: tabular-nums; pointer-events: none; }
   .hud b { color: #fff; }
@@ -623,10 +629,13 @@ if (DATA) {
     Array.prototype.forEach.call(document.querySelectorAll('.seg button'), function (x) { x.classList.toggle('on', x === b); });
   });
   $('loopb').addEventListener('click', function () { loop = !loop; vid.loop = loop; this.classList.toggle('on', loop); });
+  function toggleFs() { var el = document.querySelector('.screen'); if (document.fullscreenElement) document.exitFullscreen(); else if (el.requestFullscreen) el.requestFullscreen(); }
+  $('fs').addEventListener('click', toggleFs);
   $('scrub').addEventListener('input', function () { vid.pause(); vid.currentTime = ((+this.value / 1000) * D()) / 1000; });
   document.addEventListener('keydown', function (e) {
     if (e.target.closest('input')) return;
     if (e.key === ' ') { e.preventDefault(); vid.paused ? vid.play() : vid.pause(); }
+    if (e.key === 'f' || e.key === 'F') { toggleFs(); }
     if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
       var c = clockMs(), evs = J().events.map(function (x) { return x.t; });
       var t = e.key === 'ArrowRight'

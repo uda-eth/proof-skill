@@ -6,21 +6,21 @@
  },
  "journeys": {
   "01-focus-cycle": {
-   "t0": 1784399714935,
+   "t0": 1784405642270,
    "events": [
     {
-     "t": 913,
+     "t": 912,
      "kind": "nav",
      "label": "/"
     },
     {
-     "t": 946,
+     "t": 947,
      "kind": "assert",
      "status": "PASS",
      "label": "idle timer shows the full 25:00 focus block"
     },
     {
-     "t": 949,
+     "t": 950,
      "kind": "assert",
      "status": "PASS",
      "label": "mode chip reads Focus"
@@ -32,105 +32,105 @@
      "label": "primary control offers Start"
     },
     {
-     "t": 1465,
+     "t": 1462,
      "kind": "shot",
      "label": "idle-focus"
     },
     {
-     "t": 1985,
+     "t": 1986,
      "kind": "nav",
      "label": "fast cycle · ?focus=4&break=3"
     },
     {
-     "t": 2380,
+     "t": 2393,
      "kind": "tap",
      "x": 259.9375,
      "y": 515.09375,
      "label": "Start"
     },
     {
-     "t": 4046,
+     "t": 4050,
      "kind": "wait",
      "label": "wedge draining"
     },
     {
-     "t": 4049,
+     "t": 4054,
      "kind": "assert",
      "status": "PASS",
      "label": "running: control flips to Pause"
     },
     {
-     "t": 4051,
+     "t": 4057,
      "kind": "assert",
      "status": "PASS",
      "label": "running: wedge is draining (time below 00:04)"
     },
     {
-     "t": 4565,
+     "t": 4560,
      "kind": "shot",
      "label": "focus-running"
     },
     {
-     "t": 8066,
+     "t": 8062,
      "kind": "wait",
      "label": "block completes"
     },
     {
-     "t": 8068,
+     "t": 8066,
      "kind": "assert",
      "status": "PASS",
      "label": "completion hands off to Break automatically"
     },
     {
-     "t": 8070,
+     "t": 8068,
      "kind": "assert",
      "status": "PASS",
      "label": "break block queued at full 00:03"
     },
     {
-     "t": 8588,
+     "t": 8594,
      "kind": "shot",
      "label": "break-queued"
     }
    ],
    "net": [
     {
-     "t": 25,
+     "t": 16,
      "method": "GET",
      "url": "/",
      "status": 200,
      "type": "document"
     },
     {
-     "t": 209,
+     "t": 213,
      "method": "GET",
      "url": "https://fonts.googleapis.com/css2?family=Archivo:wght@500;800&family=Space+Grotesk:wght@400;600&display=swap",
      "status": 200,
      "type": "stylesheet"
     },
     {
-     "t": 399,
+     "t": 398,
      "method": "GET",
      "url": "https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxKsv4Rn.woff2",
      "status": 200,
      "type": "font"
     },
     {
-     "t": 411,
+     "t": 409,
      "method": "GET",
      "url": "https://fonts.gstatic.com/s/spacegrotesk/v22/V8mDoQDjQSkFtoMM3T6r8E7mPbF4C_k3HqU.woff2",
      "status": 200,
      "type": "font"
     },
     {
-     "t": 1470,
+     "t": 1468,
      "method": "GET",
      "url": "/?focus=4&break=3",
      "status": 200,
      "type": "document"
     },
     {
-     "t": 1474,
+     "t": 1472,
      "method": "GET",
      "url": "https://fonts.googleapis.com/css2?family=Archivo:wght@500;800&family=Space+Grotesk:wght@400;600&display=swap",
      "status": 200,
@@ -144,7 +144,7 @@
      "type": "font"
     },
     {
-     "t": 1484,
+     "t": 1485,
      "method": "GET",
      "url": "https://fonts.gstatic.com/s/spacegrotesk/v22/V8mDoQDjQSkFtoMM3T6r8E7mPbF4C_k3HqU.woff2",
      "status": 200,
@@ -154,102 +154,102 @@
    "video": "videos/01-focus-cycle.webm"
   },
   "02-pause-resume": {
-   "t0": 1784399723734,
+   "t0": 1784405651035,
    "events": [
     {
-     "t": 825,
+     "t": 864,
      "kind": "nav",
      "label": "/?focus=60"
     },
     {
-     "t": 1230,
+     "t": 1278,
      "kind": "tap",
      "x": 259.9375,
      "y": 515.09375,
      "label": "Start"
     },
     {
-     "t": 3478,
+     "t": 3528,
      "kind": "wait",
      "label": "counting down"
     },
     {
-     "t": 3848,
+     "t": 3895,
      "kind": "tap",
      "x": 259.9375,
      "y": 515.09375,
      "label": "Pause"
     },
     {
-     "t": 5492,
+     "t": 5543,
      "kind": "wait",
      "label": "holding while paused"
     },
     {
-     "t": 5495,
+     "t": 5547,
      "kind": "assert",
      "status": "PASS",
      "label": "paused time does not move"
     },
     {
-     "t": 5498,
+     "t": 5551,
      "kind": "assert",
      "status": "PASS",
      "label": "control offers Resume while paused"
     },
     {
-     "t": 6023,
+     "t": 6050,
      "kind": "shot",
      "label": "paused"
     },
     {
-     "t": 6397,
+     "t": 6411,
      "kind": "tap",
      "x": 259.9375,
      "y": 515.09375,
      "label": "Resume"
     },
     {
-     "t": 7941,
+     "t": 7958,
      "kind": "wait",
      "label": "countdown resumes"
     },
     {
-     "t": 7944,
+     "t": 7962,
      "kind": "assert",
      "status": "PASS",
      "label": "resume continues the countdown"
     },
     {
-     "t": 8448,
+     "t": 8489,
      "kind": "shot",
      "label": "resumed"
     }
    ],
    "net": [
     {
-     "t": 5,
+     "t": 4,
      "method": "GET",
      "url": "/?focus=60",
      "status": 200,
      "type": "document"
     },
     {
-     "t": 154,
+     "t": 173,
      "method": "GET",
      "url": "https://fonts.googleapis.com/css2?family=Archivo:wght@500;800&family=Space+Grotesk:wght@400;600&display=swap",
      "status": 200,
      "type": "stylesheet"
     },
     {
-     "t": 314,
+     "t": 354,
      "method": "GET",
      "url": "https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxKsv4Rn.woff2",
      "status": 200,
      "type": "font"
     },
     {
-     "t": 323,
+     "t": 362,
      "method": "GET",
      "url": "https://fonts.gstatic.com/s/spacegrotesk/v22/V8mDoQDjQSkFtoMM3T6r8E7mPbF4C_k3HqU.woff2",
      "status": 200,
@@ -259,61 +259,61 @@
    "video": "videos/02-pause-resume.webm"
   },
   "03-slices-persist": {
-   "t0": 1784399732331,
+   "t0": 1784405659675,
    "events": [
     {
-     "t": 904,
+     "t": 880,
      "kind": "nav",
      "label": "/?focus=3&break=2"
     },
     {
-     "t": 935,
+     "t": 911,
      "kind": "assert",
      "status": "PASS",
      "label": "empty state invites the first block"
     },
     {
-     "t": 1316,
+     "t": 1289,
      "kind": "tap",
      "x": 259.9375,
      "y": 515.09375,
      "label": "Start"
     },
     {
-     "t": 5562,
+     "t": 5535,
      "kind": "wait",
      "label": "block completes"
     },
     {
-     "t": 5565,
+     "t": 5538,
      "kind": "assert",
      "status": "PASS",
      "label": "one slice earned after completing a block"
     },
     {
-     "t": 6070,
+     "t": 6075,
      "kind": "shot",
      "label": "one-slice-earned"
     },
     {
-     "t": 6582,
+     "t": 6589,
      "kind": "nav",
      "label": "reload"
     },
     {
-     "t": 6595,
+     "t": 6607,
      "kind": "assert",
      "status": "PASS",
      "label": "the earned slice survives a reload"
     },
     {
-     "t": 6597,
+     "t": 6610,
      "kind": "assert",
      "status": "PASS",
      "label": "empty-state prompt stays gone"
     },
     {
-     "t": 7101,
+     "t": 7135,
      "kind": "shot",
      "label": "slice-persists-after-reload"
     }
@@ -327,49 +327,49 @@
      "type": "document"
     },
     {
-     "t": 221,
+     "t": 206,
      "method": "GET",
      "url": "https://fonts.googleapis.com/css2?family=Archivo:wght@500;800&family=Space+Grotesk:wght@400;600&display=swap",
      "status": 200,
      "type": "stylesheet"
     },
     {
-     "t": 396,
+     "t": 371,
      "method": "GET",
      "url": "https://fonts.gstatic.com/s/spacegrotesk/v22/V8mDoQDjQSkFtoMM3T6r8E7mPbF4C_k3HqU.woff2",
      "status": 200,
      "type": "font"
     },
     {
-     "t": 404,
+     "t": 379,
      "method": "GET",
      "url": "https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxKsv4Rn.woff2",
      "status": 200,
      "type": "font"
     },
     {
-     "t": 6075,
+     "t": 6080,
      "method": "GET",
      "url": "/?focus=3&break=2",
      "status": 200,
      "type": "document"
     },
     {
-     "t": 6078,
+     "t": 6084,
      "method": "GET",
      "url": "https://fonts.googleapis.com/css2?family=Archivo:wght@500;800&family=Space+Grotesk:wght@400;600&display=swap",
      "status": 200,
      "type": "stylesheet"
     },
     {
-     "t": 6081,
+     "t": 6086,
      "method": "GET",
      "url": "https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxKsv4Rn.woff2",
      "status": 200,
      "type": "font"
     },
     {
-     "t": 6082,
+     "t": 6087,
      "method": "GET",
      "url": "https://fonts.gstatic.com/s/spacegrotesk/v22/V8mDoQDjQSkFtoMM3T6r8E7mPbF4C_k3HqU.woff2",
      "status": 200,
@@ -379,52 +379,52 @@
    "video": "videos/03-slices-persist.webm"
   },
   "04-reset-no-credit": {
-   "t0": 1784399739585,
+   "t0": 1784405666955,
    "events": [
     {
-     "t": 837,
+     "t": 862,
      "kind": "nav",
      "label": "/?focus=60"
     },
     {
-     "t": 1245,
+     "t": 1274,
      "kind": "tap",
      "x": 259.9375,
      "y": 515.09375,
      "label": "Start"
     },
     {
-     "t": 3790,
+     "t": 3823,
      "kind": "wait",
      "label": "mid-block"
     },
     {
-     "t": 4162,
+     "t": 4190,
      "kind": "tap",
      "x": 93.9375,
      "y": 515.09375,
      "label": "Reset"
     },
     {
-     "t": 4454,
+     "t": 4483,
      "kind": "assert",
      "status": "PASS",
      "label": "reset restores the full block"
     },
     {
-     "t": 4456,
+     "t": 4484,
      "kind": "assert",
      "status": "PASS",
      "label": "control returns to Start"
     },
     {
-     "t": 4458,
+     "t": 4486,
      "kind": "assert",
      "status": "PASS",
      "label": "no slice awarded for an abandoned block"
     },
     {
-     "t": 4961,
+     "t": 4990,
      "kind": "shot",
      "label": "reset-full-block"
     }
@@ -438,23 +438,23 @@
      "type": "document"
     },
     {
-     "t": 162,
+     "t": 163,
      "method": "GET",
      "url": "https://fonts.googleapis.com/css2?family=Archivo:wght@500;800&family=Space+Grotesk:wght@400;600&display=swap",
      "status": 200,
      "type": "stylesheet"
     },
     {
-     "t": 337,
+     "t": 348,
      "method": "GET",
-     "url": "https://fonts.gstatic.com/s/spacegrotesk/v22/V8mDoQDjQSkFtoMM3T6r8E7mPbF4C_k3HqU.woff2",
+     "url": "https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxKsv4Rn.woff2",
      "status": 200,
      "type": "font"
     },
     {
-     "t": 337,
+     "t": 361,
      "method": "GET",
-     "url": "https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxKsv4Rn.woff2",
+     "url": "https://fonts.gstatic.com/s/spacegrotesk/v22/V8mDoQDjQSkFtoMM3T6r8E7mPbF4C_k3HqU.woff2",
      "status": 200,
      "type": "font"
     }
