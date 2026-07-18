@@ -5,7 +5,7 @@ description: Prove a task is actually done before it merges — drive the real a
 
 # /proof — the user-journey proof loop
 
-A task is **done** when a real user can do the thing it promised, in the real app, and you can show it. This skill turns that bar into a repeatable loop: derive journeys from the task → stand up the real app → drive it with Playwright as a phone-sized user → assert + screenshot every step → ship the evidence with the PR.
+A task is **done** when a real user can do the thing it promised, in the real app, and you can show it. This skill turns that bar into a repeatable loop: derive journeys from the task → stand up the real app → drive it with Playwright as a real user (desktop by default, phone for mobile-only apps) → assert + screenshot every step → ship the evidence with the PR.
 
 Unit tests prove functions. Integration tests prove endpoints. **Only a journey proves the feature.** All three of these have passed while the feature was invisible to users (wrong server on the port, UI behind an onboarding takeover, empty state that never resolves). The proof pack catches what green checkmarks miss.
 
@@ -40,7 +40,7 @@ A stale server from another checkout will happily serve old code and every journ
 
 Copy `references/run-template.mjs` (as `run.mjs`) and `references/report-template.mjs` (as `report.mjs`, verbatim — no edits needed) into a `<feature>-journeys/` folder at the repo root and adapt the runner. The template gives you the harness contract:
 
-- **Real Chrome, headless, phone viewport** (390×844, dpr 2) — review-stage proof looks like the product, not a 1920px dev window. **Desktop-first app?** `PROOF_DEVICE=desktop` (or `--device=desktop`) records at 1280×800 and the proof page renders browser-window chrome instead of a phone; phone stays the default.
+- **Real Chrome, headless, desktop viewport by default** (1280×800) — most web apps are used in a desktop browser, so that's the honest review surface. **Pick the device from the app, not a habit:** record phone (390×844, dpr 2 — `PROOF_DEVICE=phone` or `--device=phone`) only when the app is mobile-only, or the ticket is specifically about a mobile/responsive/touch surface. If the feature has genuinely distinct, important experiences on *both* desktop and mobile, **ask the user** which to prove — or whether to prove both — before you run; don't guess. The proof page renders the matching chrome automatically (a browser window for desktop, a phone for mobile).
 - **Fresh throwaway users per journey** with a greppable email prefix (e.g. `fpj_…@t.com`), purged at the start of every run so reruns are deterministic.
 - **Stage state through APIs/DB, drive UI only for what the user would do.** Registration flags, onboarding, seed posts — set them up via requests or SQL so each journey spends its time on the promise, not on typing into forms (except the journey whose promise IS the form).
 - **`rec(journey, step, ok, note)` for every step** — every claim in the report is an assertion that ran, pass or fail, never prose.

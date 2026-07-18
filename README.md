@@ -2,7 +2,7 @@
 
 **Prove a task is done before it merges.** A Claude Code skill that turns "the tests pass" into "here's a real user doing the thing, with receipts."
 
-`/proof` drives your actual app — real dev server, real database, real Chrome at phone size — through the user journeys your ticket promised, asserts every step, screenshots every state, and commits the evidence next to the PR:
+`/proof` drives your actual app — real dev server, real database, real Chrome (desktop by default, phone for mobile-only apps) — through the user journeys your ticket promised, asserts every step, screenshots every state, and commits the evidence next to the PR:
 
 ```
 <feature>-journeys/
@@ -75,7 +75,7 @@ Open `demo/pomodoro-journeys/REPORT.md` to see what renders in a PR, then open `
 - [`skills/proof/references/report-template.mjs`](skills/proof/references/report-template.mjs) — the report writer: one results array → `report.json` + a TLDR-first `REPORT.md` + one self-contained `REPORT.html` proof page — screen-recording player, verdict stamp, before/after sliders, ledgers (and `replay.gif` when ffmpeg is present). Zero dependencies beyond playwright.
 - [`skills/proof/references/viewports-template.mjs`](skills/proof/references/viewports-template.mjs) — the five-viewport sweep.
 
-Records at a phone viewport by default; `PROOF_DEVICE=desktop` records at 1280×800 and the proof page swaps the phone frame for a browser window. Works with any web app Playwright can drive. The templates assume Node + a Postgres `DATABASE_URL` for optional direct staging; both are trivially swappable.
+Records at a desktop viewport (1280×800) by default — the honest surface for most web apps; `PROOF_DEVICE=phone` records phone-sized for mobile-only apps or mobile-specific tickets, and the proof page swaps the browser window for a phone frame. Works with any web app Playwright can drive. The templates assume Node + a Postgres `DATABASE_URL` for optional direct staging; both are trivially swappable.
 
 ## License
 

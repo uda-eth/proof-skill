@@ -32,11 +32,12 @@ const BASELINE = ARGS.includes('--baseline');
 const ROOT = path.join(FOLDER, BASELINE ? 'shots-baseline' : 'shots');
 const USER_PREFIX = 'proof_'; // greppable + purgeable; change per suite if needed
 const ONLY = ARGS.find(a => !a.startsWith('--'))?.split(',') ?? null;
-// Device to record at. Phone is the default (review-stage proof looks like
-// the product, not a 1920px dev window); desktop for desktop-first apps.
-//   PROOF_DEVICE=desktop node run.mjs   ·   node run.mjs --device=desktop
+// Device to record at. DESKTOP is the default — most web apps are used in a
+// desktop browser, so that's the honest review surface. Use phone for a
+// mobile-only app, or a ticket about a mobile/responsive/touch surface:
+//   PROOF_DEVICE=phone node run.mjs   ·   node run.mjs --device=phone
 const DEVICES = { phone: { width: 390, height: 844, dpr: 2 }, desktop: { width: 1280, height: 800, dpr: 1 } };
-const DEVICE = process.env.PROOF_DEVICE || ARGS.find(a => a.startsWith('--device='))?.split('=')[1] || 'phone';
+const DEVICE = process.env.PROOF_DEVICE || ARGS.find(a => a.startsWith('--device='))?.split('=')[1] || 'desktop';
 const _DV = DEVICES[DEVICE] || DEVICES.phone;
 const VIEWPORT = { width: _DV.width, height: _DV.height };
 const DPR = _DV.dpr;

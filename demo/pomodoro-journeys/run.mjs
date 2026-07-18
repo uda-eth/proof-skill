@@ -20,8 +20,9 @@ const ARGS = process.argv.slice(2);
 const BASELINE = ARGS.includes('--baseline');
 const APP_DIR = path.join(FOLDER, '..', BASELINE ? 'pomodoro-app-baseline' : 'pomodoro-app');
 const ROOT = path.join(FOLDER, BASELINE ? 'shots-baseline' : 'shots');
-// Device to record at. Phone is the default (review-stage proof looks like
-// the product, not a 1920px dev window); desktop for desktop-first apps.
+// Device to record at. This demo app (wedge) is mobile-only, so it records at
+// phone size — the exception, not the rule. Most web apps keep the template's
+// DESKTOP default; override with PROOF_DEVICE / --device as needed.
 //   PROOF_DEVICE=desktop node run.mjs   ·   node run.mjs --device=desktop
 const DEVICES = { phone: { width: 390, height: 844, dpr: 2 }, desktop: { width: 1280, height: 800, dpr: 1 } };
 const DEVICE = process.env.PROOF_DEVICE || ARGS.find(a => a.startsWith('--device='))?.split('=')[1] || 'phone';
