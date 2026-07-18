@@ -439,17 +439,19 @@ async function writeReplay({ folder, base, title, generated, replay, journeys, p
   :root[data-theme="light"] { --bg: #f2f3f5; --card: #fcfcfc; --ink: #171b21; --muted: #636b76; --line: #d8dce1; --ok: #187a48; --bad: #c03530; }
   :root[data-theme="dark"] { --bg: #101317; --card: #181c22; --ink: #e7eaee; --muted: #8b939e; --line: #2b313a; --ok: #46b981; --bad: #e0645f; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font: 14.5px/1.55 var(--sans); background: var(--bg); color: var(--ink); padding: 40px 22px 60px; }
-  .wrap { max-width: 1200px; margin: 0 auto; }
+  html, body { height: 100%; }
+  body { font: 14.5px/1.55 var(--sans); background: var(--bg); color: var(--ink); padding: 14px 22px 12px; overflow: hidden; display: flex; flex-direction: column; }
+  .wrap { max-width: 1420px; margin: 0 auto; width: 100%; flex: 1; min-height: 0; display: flex; flex-direction: column; }
   a { color: inherit; }
-  .eyebrow { font: 600 11px var(--mono); letter-spacing: 0.24em; text-transform: uppercase; color: var(--muted); }
-  h1 { font: 700 clamp(21px, 3vw, 28px)/1.15 var(--mono); letter-spacing: -0.03em; margin: 8px 0 8px; }
-  .meta { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+  .mast { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 10px; flex: none; }
+  .eyebrow { font: 600 10.5px var(--mono); letter-spacing: 0.24em; text-transform: uppercase; color: var(--muted); }
+  h1 { font: 700 17px/1.2 var(--mono); letter-spacing: -0.02em; margin: 0; }
+  .meta { color: var(--muted); font-size: 12.5px; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .meta code { font: 600 12px var(--mono); color: var(--ink); }
   .vbadge { font: 700 11px var(--mono); letter-spacing: 0.05em; padding: 3px 8px; border: 1px solid currentColor; border-radius: 3px; }
   .vbadge.ok { color: var(--ok); } .vbadge.bad { color: var(--bad); }
 
-  .player { background: var(--pbg); border: 1px solid var(--pline); border-radius: 16px; overflow: hidden; color: var(--pink); box-shadow: 0 30px 70px -35px rgba(5, 8, 14, 0.6); }
+  .player { background: var(--pbg); border: 1px solid var(--pline); border-radius: 16px; overflow: hidden; color: var(--pink); box-shadow: 0 30px 70px -35px rgba(5, 8, 14, 0.6); flex: 1; min-height: 0; display: flex; flex-direction: column; }
   .pbar { display: flex; align-items: center; gap: 8px; padding: 14px 18px; border-bottom: 1px solid var(--pline); overflow-x: auto; }
   .jtabs { display: flex; gap: 6px; }
   .jtabs button { display: inline-flex; align-items: center; gap: 8px; font: 600 12px var(--mono); padding: 8px 13px; border: 1px solid transparent; background: none; color: var(--pmute); border-radius: 8px; cursor: pointer; white-space: nowrap; }
@@ -463,23 +465,31 @@ async function writeReplay({ folder, base, title, generated, replay, journeys, p
   @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.25; } }
   @media (prefers-reduced-motion: reduce) { .rec i { animation: none; } }
 
-  .stage { display: grid; grid-template-columns: minmax(240px, 330px) 1fr; gap: 26px; align-items: start; padding: 26px; }
-  @media (max-width: 840px) { .stage { grid-template-columns: 1fr; } }
-  .bezel { background: #05060a; border-radius: 42px; padding: 10px; box-shadow: inset 0 0 0 1.5px #2e333c, 0 18px 40px -20px rgba(0,0,0,0.8); }
-  .screen { position: relative; border-radius: 33px; overflow: hidden; background: #fff; }
-  .screen video { display: block; width: 100%; }
+  .stage { display: flex; gap: 24px; align-items: stretch; padding: 18px; flex: 1; min-height: 0; }
+  .devcol { flex: none; height: 100%; min-height: 0; }
+  @media (max-width: 840px) {
+    body { height: auto; overflow: auto; display: block; }
+    .stage { flex-direction: column; }
+    .devcol { height: auto; }
+    .bezel { height: auto; }
+    .screen { height: auto; width: 100%; }
+    .screen video { width: 100%; height: auto; }
+  }
+  .bezel { background: #05060a; border-radius: 42px; padding: 9px; box-shadow: inset 0 0 0 1.5px #2e333c, 0 18px 40px -20px rgba(0,0,0,0.8); height: 100%; }
+  .screen { position: relative; border-radius: 33px; overflow: hidden; background: #fff; height: 100%; aspect-ratio: ${replay.viewport.width} / ${replay.viewport.height}; }
+  .screen video { display: block; width: 100%; height: 100%; object-fit: cover; }
   .chip { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); max-width: 86%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font: 700 10.5px var(--mono); letter-spacing: 0.06em; padding: 5px 11px; border-radius: 999px; background: rgba(10,12,16,0.82); color: #fff; border: 1px solid rgba(255,255,255,0.22); pointer-events: none; }
   .hud { position: absolute; left: 10px; bottom: 10px; font: 600 10px var(--mono); letter-spacing: 0.04em; padding: 4px 8px; border-radius: 6px; background: rgba(10,12,16,0.82); color: #cfd4db; border: 1px solid rgba(255,255,255,0.16); font-variant-numeric: tabular-nums; pointer-events: none; }
   .hud b { color: #fff; }
   .toast { position: absolute; bottom: 10px; right: 10px; max-width: 70%; font: 600 10.5px var(--mono); padding: 5px 10px; border-radius: 7px; background: rgba(10,12,16,0.88); color: #fff; border-left: 3px solid var(--pok); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
   .toast.bad { border-left-color: var(--pbad); }
 
-  .side { border: 1px solid var(--pline); border-radius: 12px; background: var(--pcard); overflow: hidden; align-self: stretch; display: flex; flex-direction: column; }
+  .side { border: 1px solid var(--pline); border-radius: 12px; background: var(--pcard); overflow: hidden; flex: 1; min-width: 0; display: flex; flex-direction: column; }
   .ptabs { display: flex; border-bottom: 1px solid var(--pline); }
   .ptabs button { flex: 1; font: 600 11px var(--mono); letter-spacing: 0.12em; text-transform: uppercase; padding: 13px 4px; background: none; border: none; color: var(--pmute); cursor: pointer; border-bottom: 2px solid transparent; }
   .ptabs button.on { color: var(--pink); border-bottom-color: var(--pink); }
-  .panel { display: none; padding: 14px 16px; overflow-y: auto; max-height: 560px; }
-  .panel.on { display: block; }
+  .panel { display: none; padding: 14px 16px; }
+  .panel.on { display: block; flex: 1; min-height: 0; overflow-y: auto; }
   .steps { list-style: none; }
   .steps li { display: flex; gap: 11px; align-items: baseline; padding: 8px 2px; font-size: 13px; cursor: pointer; opacity: 0.35; border-top: 1px solid var(--pline); transition: opacity 0.2s; }
   .steps li:first-child { border-top: 0; }
@@ -507,7 +517,7 @@ async function writeReplay({ folder, base, title, generated, replay, journeys, p
   .badge { font: 700 11px var(--mono); letter-spacing: 0.05em; padding: 3px 8px; border: 1px solid currentColor; border-radius: 3px; }
   .badge.ok { color: var(--pok); } .badge.bad { color: var(--pbad); }
 
-  .transport { display: flex; align-items: center; gap: 14px; padding: 14px 18px 16px; border-top: 1px solid var(--pline); }
+  .transport { display: flex; align-items: center; gap: 14px; padding: 11px 18px 12px; border-top: 1px solid var(--pline); flex: none; }
   .tbtn { font: 700 14px var(--mono); width: 42px; height: 38px; border: 1px solid var(--pline); border-radius: 10px; background: var(--pcard); color: var(--pink); cursor: pointer; }
   .tbtn:hover { border-color: var(--pmute); }
   .tbtn.on { border-color: var(--pink); }
@@ -527,19 +537,21 @@ async function writeReplay({ folder, base, title, generated, replay, journeys, p
   .playhead::after { content: ''; position: absolute; top: -1px; left: 50%; transform: translateX(-50%); width: 9px; height: 9px; border-radius: 50%; background: #fff; }
   #scrub { position: absolute; inset: 0; width: 100%; opacity: 0; cursor: pointer; }
   .clock { font: 600 12px var(--mono); color: var(--pmute); min-width: 96px; text-align: right; font-variant-numeric: tabular-nums; }
-  footer { margin-top: 16px; color: var(--muted); font-size: 12px; }
+  footer { margin-top: 8px; color: var(--muted); font-size: 11.5px; flex: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   footer kbd { font: 600 10.5px var(--mono); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; background: var(--card); }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="eyebrow">Proof pack · journey replay</div>
-  <h1>${esc(title)}</h1>
-  <p class="meta"><span class="vbadge ${proven ? 'ok' : 'bad'}">${proven ? '✓ PROVEN' : '✗ NOT PROVEN'}</span> · <a href="REPORT.html">certificate ▸</a> · against <code>${esc(base)}</code> · ${generated} · real screen recordings of the run — the reticle was injected into the live page at the recorded input coordinates</p>
+  <header class="mast">
+    <div class="eyebrow">Proof pack · journey replay</div>
+    <h1>${esc(title)}</h1>
+    <p class="meta"><span class="vbadge ${proven ? 'ok' : 'bad'}">${proven ? '✓ PROVEN' : '✗ NOT PROVEN'}</span> · <a href="REPORT.html">certificate ▸</a> · <code>${esc(base)}</code> · ${generated}</p>
+  </header>
   <div class="player">
     <div class="pbar"><nav class="jtabs" id="jtabs"></nav><span class="rec"><i></i>RECORDED RUN</span></div>
     <div class="stage">
-      <div><div class="bezel"><div class="screen">
+      <div class="devcol"><div class="bezel"><div class="screen">
         <video id="vid" playsinline muted preload="auto"></video>
         <div class="chip" id="chip" hidden></div>
         <div class="hud" id="hud" hidden></div>
@@ -566,7 +578,7 @@ async function writeReplay({ folder, base, title, generated, replay, journeys, p
       <button class="tbtn on" id="loopb" title="loop">⟲</button>
     </div>
   </div>
-  <footer><kbd>space</kbd> play/pause · <kbd>←</kbd><kbd>→</kbd> jump between events · drag the timeline. This is the actual recording of the test session; green/red ticks are assertions, dark ticks are inputs (hover for the recorded coordinates).</footer>
+  <footer><kbd>space</kbd> play/pause · <kbd>←</kbd><kbd>→</kbd> jump events · drag the timeline. Real screen recordings — the reticle was injected into the live page at the recorded input coordinates; green/red ticks are assertions, dark ticks inputs (hover for coordinates).</footer>
 </div>
 <script>
 var DATA = ${data};
