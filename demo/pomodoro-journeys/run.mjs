@@ -67,11 +67,21 @@ async function tap(page, j, selector, label = '') {
  * never blended into the machine-driven steps. Always rec() the OUTCOME after.
  */
 async function manual(page, j, label, { stage } = {}) {
-  ev(j, { kind: 'manual', label });
-  results.push({ journey: j, step: label, status: 'MANUAL', note: 'human / staged — not machine-driven' });
+  const tty = process.stdin.isTTY && process.stdout.isTTY && !process.env.PROOF_MANUAL;
+  const mode = stage ? 'staged' : tty ? 'human' : 'skipped';
+  ev(j, { kind: 'manual', label, mode });
+  results.push({
+    journey: j,
+    step: label,
+    status: 'MANUAL',
+    note:
+      mode === 'staged' ? 'effect staged via API — a human performs this step in real use'
+      : mode === 'human' ? 'performed by a human, live'
+      : 'manual step — not performed (run interactively or pass a stage fn)',
+  });
   if (stage) {
     await stage();
-  } else if (process.stdin.isTTY && process.stdout.isTTY && !process.env.PROOF_MANUAL) {
+  } else if (tty) {
     process.stdout.write(`\n   ⏸  MANUAL: ${label}\n      perform it in the browser, then press Enter to continue… `);
     await new Promise(res => { process.stdin.resume(); process.stdin.once('data', () => { process.stdin.pause(); res(); }); });
   } else {

@@ -36,7 +36,7 @@
       "journey": "01-focus-cycle",
       "step": "grant notification permission",
       "status": "MANUAL",
-      "note": "human / staged — not machine-driven"
+      "note": "effect staged via API — a human performs this step in real use"
     },
     {
       "journey": "01-focus-cycle",

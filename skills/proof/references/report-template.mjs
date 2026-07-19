@@ -268,12 +268,13 @@ export async function writeReports({ folder, base, title = 'user journeys', resu
   .reticle .m { position: absolute; width: 26px; height: 26px; border-radius: 8px; border: 2px solid #fff; background: rgba(16,18,22,0.35); box-shadow: 0 1px 8px rgba(10,12,16,0.4); transform: translate(-50%,-50%); }
   .reticle .p { position: absolute; width: 26px; height: 26px; border-radius: 9px; border: 2px solid #fff; transform: translate(-50%,-50%); opacity: 0; }
   .mark { position: absolute; top: 12px; right: 12px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 14px; font-weight: 700; color: #fff; background: var(--ok); box-shadow: 0 2px 10px rgba(10,12,16,0.35); }
-  /* manual-step overlay: a machine can't record a fingerprint/CAPTCHA/etc — the
-     grey panel says a human did this step, honestly, instead of faking footage */
-  .manov { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; text-align: center; padding: 22px; color: #fff; background: rgba(22,24,28,0.66); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); }
-  .manov-ic { font-size: 24px; line-height: 1; opacity: 0.92; }
-  .manov-h { font: 600 15px var(--sans); letter-spacing: -0.01em; max-width: 22ch; }
-  .manov-s { font: 500 10px var(--mono); letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.66; }
+  /* manual-step marker: a machine can't record a fingerprint/CAPTCHA/etc, so a
+     small card names the step honestly — the video above it stays watchable */
+  .manov { position: absolute; left: 12px; right: 12px; bottom: 12px; display: flex; align-items: center; gap: 11px; padding: 10px 13px; border-radius: 12px; color: #fff; background: rgba(15,17,21,0.86); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); box-shadow: 0 6px 22px rgba(0,0,0,0.45); }
+  .manov-ic { font-size: 21px; line-height: 1; flex: none; }
+  .manov-txt { min-width: 0; display: flex; flex-direction: column; gap: 1px; text-align: left; }
+  .manov-h { font: 600 13px var(--sans); letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .manov-s { font: 500 11px/1.35 var(--sans); opacity: 0.72; }
   .mark.bad { background: var(--bad); }
   /* fullscreen the whole player so the controls stay usable; pseudo-fs is the
      fallback for sandboxed iframes that block the Fullscreen API */
@@ -358,7 +359,7 @@ ${
         <div class="ov" id="ov">
           <div class="reticle" id="reticle"><span class="h"></span><span class="v"></span><span class="p"></span><span class="m"></span></div>
           <div class="mark" id="mark" hidden></div>
-          <div class="manov" id="manov" hidden><div class="manov-ic">⏸</div><div class="manov-h" id="manov-h"></div><div class="manov-s">performed manually — not machine-driven</div></div>
+          <div class="manov" id="manov" hidden><span class="manov-ic">🙋</span><span class="manov-txt"><span class="manov-h" id="manov-h"></span><span class="manov-s" id="manov-s"></span></span></div>
         </div>
       </div>
     </div>
@@ -451,7 +452,13 @@ ${
     var man = last && last.kind === 'manual' ? last : null;
     var MO = $('manov');
     MO.hidden = !man;
-    if (man) $('manov-h').textContent = man.label || 'manual step';
+    if (man) {
+      $('manov-h').textContent = man.label || 'manual step';
+      $('manov-s').textContent =
+        man.mode === 'human' ? 'Performed by a human, live'
+        : man.mode === 'staged' ? 'Effect staged via API — a human does this in real use'
+        : 'Manual step — not machine-driven';
+    }
     var R = $('reticle');
     if (!reticleOn || man) { R.style.display = 'none'; } else {
       var cur = cursorAt(c);
