@@ -219,15 +219,17 @@ export async function writeReports({ folder, base, title = 'user journeys', resu
 <title>${esc(title)} — proof</title>
 <style>
   :root {
-    --bg: #f6f6f4; --surface: #fff; --ink: #1b1c1e; --mute: #74767b; --faint: #a2a4a8;
-    --line: #e7e7e3; --line2: #dcdcd7; --field: #ecece8; --ok: #3f7d55; --bad: #b1463c;
+    --bg: #ffffff; --surface: #ffffff; --ink: #1a1b1e; --mute: #63666d; --faint: #9b9ea5;
+    --line: #eceef1; --line2: #e2e4e8; --field: #f2f3f5; --ok: #1f8a4c; --bad: #c9453a;
+    --frame: #0d0e10;
     --sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
     --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
     --vw: ${arNum};
   }
   :root[data-theme="dark"] {
-    --bg: #151617; --surface: #1c1d1f; --ink: #e8e8e5; --mute: #9a9ba0; --faint: #66686c;
-    --line: #292a2c; --line2: #34353800; --field: #292a2c; --ok: #63b183; --bad: #d47a70;
+    --bg: #0e0f11; --surface: #16181b; --ink: #e9eaed; --mute: #979ba2; --faint: #5e626a;
+    --line: #23252a; --line2: #2b2e33; --field: #1b1d21; --ok: #45b877; --bad: #e06a5f;
+    --frame: #000000;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { background: var(--bg); }
@@ -251,7 +253,7 @@ export async function writeReports({ folder, base, title = 'user journeys', resu
   /* ── player: the video is the hero ── */
   .player { display: flex; flex-direction: column; gap: 12px; }
   .viewport { display: flex; align-items: center; justify-content: center; }
-  .frame { position: relative; width: min(100%, calc(66vh * var(--vw))); aspect-ratio: var(--vw); background: #0c0d0e; border: 1px solid var(--line2); border-radius: 12px; overflow: hidden; box-shadow: 0 1px 0 rgba(0,0,0,0.02), 0 18px 40px -28px rgba(0,0,0,0.45); }
+  .frame { position: relative; width: min(100%, calc(66vh * var(--vw))); aspect-ratio: var(--vw); background: var(--frame); border: 1px solid var(--line2); border-radius: 12px; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 18px 40px -30px rgba(0,0,0,0.4); }
   .frame video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
   .ov { position: absolute; inset: 0; pointer-events: none; }
   .reticle { position: absolute; inset: 0; }
@@ -261,8 +263,10 @@ export async function writeReports({ folder, base, title = 'user journeys', resu
   .reticle .p { position: absolute; width: 26px; height: 26px; border-radius: 9px; border: 2px solid #fff; transform: translate(-50%,-50%); opacity: 0; }
   .mark { position: absolute; top: 12px; right: 12px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 14px; font-weight: 700; color: #fff; background: var(--ok); box-shadow: 0 2px 10px rgba(10,12,16,0.35); }
   .mark.bad { background: var(--bad); }
-  .viewport:fullscreen { width: 100vw; height: 100vh; background: #000; }
-  .viewport:fullscreen .frame { width: min(100vw, calc(100vh * var(--vw))); border: none; border-radius: 0; box-shadow: none; }
+  /* fullscreen the whole player so the controls stay usable; pseudo-fs is the
+     fallback for sandboxed iframes that block the Fullscreen API */
+  .player:fullscreen, .pfs #player { position: fixed; inset: 0; z-index: 9999; width: 100vw; height: 100vh; margin: 0; padding: 18px 22px 20px; background: var(--bg); justify-content: center; }
+  .player:fullscreen .frame, .pfs #player .frame { width: min(100%, calc(70vh * var(--vw))); }
 
   /* ── control bar ── */
   .bar { display: flex; align-items: center; gap: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; }
@@ -288,29 +292,25 @@ export async function writeReports({ folder, base, title = 'user journeys', resu
   .promise { font-size: 13.5px; color: var(--mute); }
   .promise b { color: var(--ink); font-weight: 600; }
 
-  /* ── evidence: quiet, collapsed ── */
-  .evidence { margin-top: 30px; border-top: 1px solid var(--line); }
-  .evidence > summary { list-style: none; cursor: pointer; display: flex; align-items: baseline; gap: 12px; padding: 16px 2px; color: var(--mute); font-size: 13px; }
-  .evidence > summary::-webkit-details-marker { display: none; }
-  .evidence > summary::before { content: '▸'; color: var(--faint); font-size: 11px; }
-  .evidence[open] > summary::before { content: '▾'; }
-  .evidence > summary b { color: var(--ink); font-weight: 600; font-size: 13px; }
-  .ev-body { display: flex; flex-direction: column; gap: 26px; padding: 6px 2px 8px; }
-  .failbox { border: 1px solid var(--bad); border-radius: 10px; padding: 12px 15px; color: var(--bad); font-size: 13px; }
+  /* ── goals + evidence: always visible, readable ── */
+  .goals { margin-top: 40px; }
+  .eyebrow { font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: var(--faint); margin: 32px 0 4px; }
+  .goals > .eyebrow:first-child { margin-top: 0; }
+  .failbox { border: 1px solid var(--bad); border-radius: 10px; padding: 13px 16px; color: var(--bad); font-size: 13.5px; margin-bottom: 8px; }
   .failbox b { display: block; margin-bottom: 6px; font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; }
   .failbox li { margin-left: 16px; }
-  .ej { display: flex; flex-direction: column; gap: 10px; }
-  .ej-h { display: flex; align-items: center; gap: 10px; }
-  .ej-h .dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
-  .ej-promise { font-size: 14px; font-weight: 500; }
-  .ej-count { margin-left: auto; font: 500 12px var(--mono); color: var(--mute); font-variant-numeric: tabular-nums; }
-  .ej-steps { list-style: none; display: flex; flex-direction: column; gap: 2px; }
-  .ej-steps li { display: flex; gap: 9px; font-size: 13px; color: var(--mute); padding: 2px 0; }
-  .ej-steps .tick { color: var(--ok); font-size: 12px; }
-  .ej-steps li.n { color: var(--ink); } .ej-steps li.n .tick { color: var(--bad); }
+  .ej { padding: 20px 0; border-top: 1px solid var(--line); }
+  .ej-h { display: flex; align-items: baseline; gap: 11px; margin-bottom: 13px; }
+  .ej-h .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; align-self: center; }
+  .ej-promise { font-size: 15.5px; font-weight: 600; line-height: 1.4; letter-spacing: -0.005em; }
+  .ej-count { margin-left: auto; font: 500 13px var(--mono); color: var(--mute); font-variant-numeric: tabular-nums; }
+  .ej-steps { list-style: none; display: flex; flex-direction: column; gap: 1px; }
+  .ej-steps li { display: flex; gap: 10px; font-size: 14px; line-height: 1.55; color: var(--ink); opacity: 0.86; padding: 3px 0; }
+  .ej-steps .tick { color: var(--ok); font-weight: 700; flex: none; }
+  .ej-steps li.n { opacity: 1; font-weight: 500; } .ej-steps li.n .tick { color: var(--bad); }
   .ej-steps .note { color: var(--faint); }
-  .strip { display: flex; gap: 8px; overflow-x: auto; padding-top: 4px; }
-  .strip img { height: 180px; border: 1px solid var(--line); border-radius: 7px; display: block; }
+  .strip { display: flex; gap: 8px; overflow-x: auto; padding: 14px 0 2px; }
+  .strip img { height: 168px; border: 1px solid var(--line); border-radius: 8px; display: block; }
   .pairs { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
   .pair { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--surface); }
   .pair .pl { padding: 8px 11px; font: 500 11px var(--mono); color: var(--mute); border-bottom: 1px solid var(--line); }
@@ -336,7 +336,7 @@ export async function writeReports({ folder, base, title = 'user journeys', resu
   </header>
 ${
   hasPlayer
-    ? `  <section class="player">
+    ? `  <section class="player" id="player">
     <div class="viewport" id="vp">
       <div class="frame" id="frame">
         <video id="vid" playsinline muted preload="auto"></video>
@@ -364,15 +364,13 @@ ${
     : `  <p class="subtle">No recording was captured for this run. The evidence is below.</p>`
 }
 
-  <details class="evidence"${hasPlayer ? '' : ' open'}>
-    <summary><b>Evidence</b> ${esc(evMeta)}</summary>
-    <div class="ev-body">
-      ${failed.length ? `<div class="failbox"><b>What failed</b><ul>${failed.map(r => `<li>${esc(r.journey)} :: ${esc(r.step)}${r.note ? ` — ${esc(r.note)}` : ''}</li>`).join('')}</ul></div>` : ''}
-      ${journeys.map(evJourney).join('\n      ')}
-      ${pairs.length ? `<div><div class="ev-h">Before → after · drag the handle</div><div class="pairs" style="margin-top:10px">${pairs.map(p => `<div class="pair"><div class="pl">${esc(p.step)}</div><div class="cmp"><img src="${isrc(p.before)}" alt="before" loading="lazy"><div class="after"><img src="${isrc(p.after)}" alt="after" loading="lazy"></div><span class="tag b">before</span><span class="tag a">after</span><div class="dv"></div></div></div>`).join('')}</div></div>` : ''}
-      ${viewports.length ? `<div><div class="ev-h">Viewport sweep</div><div class="strip" style="margin-top:10px">${viewports.map(v => `<a href="${v}" target="_blank"><img src="${isrc(v)}" alt="${esc(path.basename(v, '.png'))}" loading="lazy"></a>`).join('')}</div></div>` : ''}
-    </div>
-  </details>
+  <section class="goals">
+    ${failed.length ? `<div class="failbox"><b>What failed</b><ul>${failed.map(r => `<li>${esc(r.promise || r.journey)}: ${esc(r.step)}${r.note ? ` — ${esc(r.note)}` : ''}</li>`).join('')}</ul></div>` : ''}
+    <div class="eyebrow">Goals — ${esc(evMeta)}</div>
+    ${journeys.map(evJourney).join('\n    ')}
+    ${pairs.length ? `<div class="eyebrow">Before → after · drag the handle</div><div class="pairs">${pairs.map(p => `<div class="pair"><div class="pl">${esc(p.step)}</div><div class="cmp"><img src="${isrc(p.before)}" alt="before" loading="lazy"><div class="after"><img src="${isrc(p.after)}" alt="after" loading="lazy"></div><span class="tag b">before</span><span class="tag a">after</span><div class="dv"></div></div></div>`).join('')}</div>` : ''}
+    ${viewports.length ? `<div class="eyebrow">Viewport sweep</div><div class="strip">${viewports.map(v => `<a href="${v}" target="_blank"><img src="${isrc(v)}" alt="${esc(path.basename(v, '.png'))}" loading="lazy"></a>`).join('')}</div>` : ''}
+  </section>
 
   <footer>Generated by the /proof journey runner — regenerate with <code>node run.mjs</code>. Every ✓/✗ is an assertion that ran against the live app${hasPlayer ? '; the video is a real screen recording of the run, with the reticle drawn from the logged input coordinates' : ''}.</footer>
 </div>
@@ -483,7 +481,17 @@ ${
   });
   $('ovbtn').addEventListener('click', function () { reticleOn = !reticleOn; this.classList.toggle('off', !reticleOn); });
   $('mkbtn').addEventListener('click', function () { markOn = !markOn; this.classList.toggle('off', !markOn); });
-  function toggleFs() { var el = $('vp'); if (document.fullscreenElement) document.exitFullscreen(); else if (el.requestFullscreen) el.requestFullscreen(); }
+  var pfs = false;
+  function realFs() { return document.fullscreenElement || document.webkitFullscreenElement; }
+  function toggleFs() {
+    var el = $('player');
+    if (realFs()) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); return; }
+    if (pfs) { pfs = false; root.classList.remove('pfs'); return; }
+    var req = el.requestFullscreen || el.webkitRequestFullscreen;
+    if (req) { try { var r = req.call(el); if (r && r.catch) r.catch(pseudoFs); return; } catch (e) {} }
+    pseudoFs();
+  }
+  function pseudoFs() { pfs = true; root.classList.add('pfs'); }
   $('fs').addEventListener('click', toggleFs);
   var sc = $('scrub');
   var seek = function () { scrubbing = true; vid.pause(); vid.currentTime = (+sc.value / 1000) * D() / 1000; paintOverlay(now()); };
@@ -494,6 +502,7 @@ ${
     if (e.target.closest('input, [contenteditable]')) return;
     if (e.key === ' ') { e.preventDefault(); vid.paused ? vid.play() : vid.pause(); }
     else if (e.key === 'f' || e.key === 'F') toggleFs();
+    else if (e.key === 'Escape' && pfs) toggleFs();
     else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
       var c = now(), ev = J().events.map(function (x) { return x.t; });
       var t = e.key === 'ArrowRight' ? (ev.filter(function (x) { return x > c + 50; })[0] ?? D()) : (ev.filter(function (x) { return x < c - 50; }).pop() ?? 0);
