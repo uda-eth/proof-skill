@@ -267,15 +267,6 @@ export async function writeReports({ folder, base, title = 'user journeys', resu
   .reticle .h { left: 0; right: 0; height: 1px; } .reticle .v { top: 0; bottom: 0; width: 1px; }
   .reticle .m { position: absolute; width: 26px; height: 26px; border-radius: 8px; border: 2px solid #fff; background: rgba(16,18,22,0.35); box-shadow: 0 1px 8px rgba(10,12,16,0.4); transform: translate(-50%,-50%); }
   .reticle .p { position: absolute; width: 26px; height: 26px; border-radius: 9px; border: 2px solid #fff; transform: translate(-50%,-50%); opacity: 0; }
-  .mark { position: absolute; top: 12px; right: 12px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 14px; font-weight: 700; color: #fff; background: var(--ok); box-shadow: 0 2px 10px rgba(10,12,16,0.35); }
-  /* manual-step marker: a machine can't record a fingerprint/CAPTCHA/etc, so a
-     small card names the step honestly — the video above it stays watchable */
-  .manov { position: absolute; left: 12px; right: 12px; bottom: 12px; display: flex; align-items: center; gap: 11px; padding: 10px 13px; border-radius: 12px; color: #fff; background: rgba(15,17,21,0.86); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); box-shadow: 0 6px 22px rgba(0,0,0,0.45); }
-  .manov-ic { font-size: 21px; line-height: 1; flex: none; }
-  .manov-txt { min-width: 0; display: flex; flex-direction: column; gap: 1px; text-align: left; }
-  .manov-h { font: 600 13px var(--sans); letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .manov-s { font: 500 11px/1.35 var(--sans); opacity: 0.72; }
-  .mark.bad { background: var(--bad); }
   /* fullscreen the whole player so the controls stay usable; pseudo-fs is the
      fallback for sandboxed iframes that block the Fullscreen API */
   .player:fullscreen, .pfs #player { position: fixed; inset: 0; z-index: 9999; width: 100vw; height: 100vh; margin: 0; padding: 18px 22px 20px; background: var(--bg); justify-content: center; }
@@ -358,8 +349,6 @@ ${
         <video id="vid" playsinline muted preload="auto"></video>
         <div class="ov" id="ov">
           <div class="reticle" id="reticle"><span class="h"></span><span class="v"></span><span class="p"></span><span class="m"></span></div>
-          <div class="mark" id="mark" hidden></div>
-          <div class="manov" id="manov" hidden><span class="manov-ic">🙋</span><span class="manov-txt"><span class="manov-h" id="manov-h"></span><span class="manov-s" id="manov-s"></span></span></div>
         </div>
       </div>
     </div>
@@ -370,7 +359,6 @@ ${
       <button class="ico txt" id="speed" title="speed">2×</button>
       <span class="sep"></span>
       <button class="ico" id="ovbtn" title="reticle overlay">◎</button>
-      <button class="ico" id="mkbtn" title="step markers">✓</button>
       <button class="ico" id="fs" title="fullscreen (f)">⛶</button>
     </div>
     <div class="cap">
@@ -412,7 +400,7 @@ ${
   var SPEEDS = [1, 2, 4, 8];
   // Only draw the reticle overlay for CLEAN recordings (DATA.overlay). Older
   // packs baked the reticle into the video — drawing another would double it.
-  var jIdx = 0, speed = 2, reticleOn = !!DATA.overlay, markOn = true, scrubbing = false;
+  var jIdx = 0, speed = 2, reticleOn = !!DATA.overlay, scrubbing = false;
   if (!DATA.overlay) { var _ob = document.getElementById('ovbtn'); if (_ob) _ob.style.display = 'none'; }
   var $ = function (id) { return document.getElementById(id); };
   var vid = $('vid'), vw = DATA.viewport;
@@ -444,43 +432,21 @@ ${
   }
 
   function paintOverlay(c) {
-    // manual-step overlay: active while the most-recent event is a manual one
-    // (i.e. from the manual step until the next recorded action). Covers the
-    // reticle — a human did this step, there is nothing to point at.
-    var evs = J().events, last = null;
-    for (var q = 0; q < evs.length; q++) { if (evs[q].t <= c) last = evs[q]; else break; }
-    var man = last && last.kind === 'manual' ? last : null;
-    var MO = $('manov');
-    MO.hidden = !man;
-    if (man) {
-      $('manov-h').textContent = man.label || 'manual step';
-      $('manov-s').textContent =
-        man.mode === 'human' ? 'Performed by a human, live'
-        : man.mode === 'staged' ? 'Effect staged via API — a human does this in real use'
-        : 'Manual step — not machine-driven';
-    }
     var R = $('reticle');
-    if (!reticleOn || man) { R.style.display = 'none'; } else {
-      var cur = cursorAt(c);
-      if (!cur) { R.style.display = 'none'; } else {
-        R.style.display = '';
-        var X = (cur.x / vw.width) * 100, Y = (cur.y / vw.height) * 100;
-        R.querySelector('.h').style.top = Y + '%';
-        R.querySelector('.v').style.left = X + '%';
-        var m = R.querySelector('.m'); m.style.left = X + '%'; m.style.top = Y + '%';
-        var p = R.querySelector('.p');
-        if (cur.rest && cur.age < 420) {
-          var f = cur.age / 420;
-          p.style.left = X + '%'; p.style.top = Y + '%'; p.style.opacity = 1 - f;
-          p.style.transform = 'translate(-50%,-50%) scale(' + (1 + f * 1.7) + ')';
-        } else p.style.opacity = 0;
-      }
-    }
-    var la = null;
-    J().events.forEach(function (e) { if (e.kind === 'assert' && e.t <= c && c - e.t < 1100) la = e; });
-    var M = $('mark');
-    if (markOn && la && !man) { M.hidden = false; M.className = 'mark' + (la.status === 'PASS' ? '' : ' bad'); M.textContent = la.status === 'PASS' ? '✓' : '✗'; }
-    else M.hidden = true;
+    if (!reticleOn) { R.style.display = 'none'; return; }
+    var cur = cursorAt(c);
+    if (!cur) { R.style.display = 'none'; return; }
+    R.style.display = '';
+    var X = (cur.x / vw.width) * 100, Y = (cur.y / vw.height) * 100;
+    R.querySelector('.h').style.top = Y + '%';
+    R.querySelector('.v').style.left = X + '%';
+    var m = R.querySelector('.m'); m.style.left = X + '%'; m.style.top = Y + '%';
+    var p = R.querySelector('.p');
+    if (cur.rest && cur.age < 420) {
+      var f = cur.age / 420;
+      p.style.left = X + '%'; p.style.top = Y + '%'; p.style.opacity = 1 - f;
+      p.style.transform = 'translate(-50%,-50%) scale(' + (1 + f * 1.7) + ')';
+    } else p.style.opacity = 0;
   }
 
   function paint() {
@@ -516,7 +482,6 @@ ${
     speed = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length]; vid.playbackRate = speed; this.textContent = speed + '×';
   });
   $('ovbtn').addEventListener('click', function () { reticleOn = !reticleOn; this.classList.toggle('off', !reticleOn); });
-  $('mkbtn').addEventListener('click', function () { markOn = !markOn; this.classList.toggle('off', !markOn); });
   var pfs = false;
   function realFs() { return document.fullscreenElement || document.webkitFullscreenElement; }
   function toggleFs() {
