@@ -34,6 +34,12 @@
   "results": [
     {
       "journey": "01-focus-cycle",
+      "step": "grant notification permission",
+      "status": "MANUAL",
+      "note": "human / staged — not machine-driven"
+    },
+    {
+      "journey": "01-focus-cycle",
       "step": "idle timer shows the full 25:00 focus block",
       "status": "PASS",
       "note": ""

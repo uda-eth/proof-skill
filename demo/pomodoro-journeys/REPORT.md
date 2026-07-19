@@ -32,6 +32,7 @@ Same journey step on the merge-base build (left) and this branch (right).
 
 > The core promise: a focus block runs, the wedge drains, and completion hands off to a break automatically
 
+- ⏸ (manual) grant notification permission — human / staged — not machine-driven
 - ✅ idle timer shows the full 25:00 focus block
 - ✅ mode chip reads Focus
 - ✅ primary control offers Start

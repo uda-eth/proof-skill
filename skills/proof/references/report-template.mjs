@@ -60,6 +60,7 @@ const stepLabel = f => f.replace(/^\d+-/, '').replace(/\.png$/, '');
 export async function writeReports({ folder, base, title = 'user journeys', results, promises = {} }) {
   const pass = results.filter(r => r.status === 'PASS').length;
   const fail = results.filter(r => r.status === 'FAIL').length;
+  const manual = results.filter(r => r.status === 'MANUAL').length;
   const proven = fail === 0 && pass > 0;
   const generated = new Date().toISOString().slice(0, 10);
 
@@ -174,7 +175,7 @@ export async function writeReports({ folder, base, title = 'user journeys', resu
     md += `## ${j.name}\n\n`;
     if (j.promise) md += `> ${j.promise}\n\n`;
     for (const r of j.steps)
-      md += `- ${r.status === 'PASS' ? '✅' : '❌'} ${r.step}${r.note ? ` — ${r.note}` : ''}\n`;
+      md += `- ${r.status === 'PASS' ? '✅' : r.status === 'MANUAL' ? '⏸ (manual)' : '❌'} ${r.step}${r.note ? ` — ${r.note}` : ''}\n`;
     if (j.shots.length) md += '\n' + j.shots.map(s => `<img src="${s}" width="160">`).join(' ') + '\n';
     md += '\n';
   }
@@ -189,7 +190,7 @@ export async function writeReports({ folder, base, title = 'user journeys', resu
   ]);
   const isrc = rel => embedded[rel] || rel;
   const data = hasPlayer
-    ? JSON.stringify({ viewport: replay.viewport, journeys: jr }).replace(/</g, '\\u003c')
+    ? JSON.stringify({ viewport: replay.viewport, overlay: replay.overlay === true, journeys: jr }).replace(/</g, '\\u003c')
     : 'null';
   const arNum = hasPlayer ? (replay.viewport.width / replay.viewport.height).toFixed(4) : (390 / 844).toFixed(4);
   const evMeta = [
@@ -206,7 +207,12 @@ export async function writeReports({ folder, base, title = 'user journeys', resu
         <span class="ej-count">${j.pass}/${j.pass + j.fail}</span>
       </div>
       <ul class="ej-steps">
-        ${j.steps.map(r => `<li class="${r.status === 'PASS' ? 'y' : 'n'}"><span class="tick">${r.status === 'PASS' ? '✓' : '✗'}</span>${esc(r.step)}${r.note ? `<span class="note"> — ${esc(r.note)}</span>` : ''}</li>`).join('\n        ')}
+        ${j.steps.map(r => {
+          const cls = r.status === 'PASS' ? 'y' : r.status === 'MANUAL' ? 'm' : 'n';
+          const icon = r.status === 'PASS' ? '✓' : r.status === 'MANUAL' ? '⏸' : '✗';
+          const tag = r.status === 'MANUAL' ? '<span class="mtag">manual</span>' : '';
+          return `<li class="${cls}"><span class="tick">${icon}</span>${esc(r.step)}${tag}${r.note ? `<span class="note"> — ${esc(r.note)}</span>` : ''}</li>`;
+        }).join('\n        ')}
       </ul>
       ${j.shots.length ? `<div class="strip">${j.shots.map(s => `<a href="${s}" target="_blank"><img src="${isrc(s)}" alt="${esc(stepLabel(path.basename(s)))}" loading="lazy"></a>`).join('')}</div>` : ''}
     </section>`;
@@ -262,6 +268,12 @@ export async function writeReports({ folder, base, title = 'user journeys', resu
   .reticle .m { position: absolute; width: 26px; height: 26px; border-radius: 8px; border: 2px solid #fff; background: rgba(16,18,22,0.35); box-shadow: 0 1px 8px rgba(10,12,16,0.4); transform: translate(-50%,-50%); }
   .reticle .p { position: absolute; width: 26px; height: 26px; border-radius: 9px; border: 2px solid #fff; transform: translate(-50%,-50%); opacity: 0; }
   .mark { position: absolute; top: 12px; right: 12px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 14px; font-weight: 700; color: #fff; background: var(--ok); box-shadow: 0 2px 10px rgba(10,12,16,0.35); }
+  /* manual-step overlay: a machine can't record a fingerprint/CAPTCHA/etc — the
+     grey panel says a human did this step, honestly, instead of faking footage */
+  .manov { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; text-align: center; padding: 22px; color: #fff; background: rgba(22,24,28,0.66); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); }
+  .manov-ic { font-size: 24px; line-height: 1; opacity: 0.92; }
+  .manov-h { font: 600 15px var(--sans); letter-spacing: -0.01em; max-width: 22ch; }
+  .manov-s { font: 500 10px var(--mono); letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.66; }
   .mark.bad { background: var(--bad); }
   /* fullscreen the whole player so the controls stay usable; pseudo-fs is the
      fallback for sandboxed iframes that block the Fullscreen API */
@@ -282,6 +294,7 @@ export async function writeReports({ folder, base, title = 'user journeys', resu
   .fill { position: absolute; left: 0; height: 4px; background: var(--mute); border-radius: 3px; width: 0; }
   .tk { position: absolute; top: 50%; width: 3px; height: 3px; border-radius: 50%; transform: translate(-50%,-50%); }
   .tk.ok { background: var(--ok); } .tk.bad { background: var(--bad); }
+  .tk.man { background: var(--mute); width: 4px; height: 4px; }
   #scrub { position: absolute; left: 0; right: 0; width: 100%; margin: 0; height: 32px; opacity: 0; cursor: pointer; }
 
   .cap { display: flex; align-items: center; gap: 14px; padding: 0 2px; min-height: 24px; }
@@ -308,6 +321,8 @@ export async function writeReports({ folder, base, title = 'user journeys', resu
   .ej-steps li { display: flex; gap: 10px; font-size: 14px; line-height: 1.55; color: var(--ink); opacity: 0.86; padding: 3px 0; }
   .ej-steps .tick { color: var(--ok); font-weight: 700; flex: none; }
   .ej-steps li.n { opacity: 1; font-weight: 500; } .ej-steps li.n .tick { color: var(--bad); }
+  .ej-steps li.m { opacity: 1; } .ej-steps li.m .tick { color: var(--mute); }
+  .ej-steps .mtag { margin-left: 8px; font: 500 10px var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint); border: 1px solid var(--line2); border-radius: 4px; padding: 1px 6px; }
   .ej-steps .note { color: var(--faint); }
   .strip { display: flex; gap: 8px; overflow-x: auto; padding: 14px 0 2px; }
   .strip img { height: 168px; border: 1px solid var(--line); border-radius: 8px; display: block; }
@@ -330,7 +345,7 @@ export async function writeReports({ folder, base, title = 'user journeys', resu
 <div class="wrap">
   <header>
     <h1>${esc(title)}</h1>
-    <span class="verdict ${proven ? 'ok' : 'bad'}"><span class="dot ${proven ? 'ok' : 'bad'}"></span>${proven ? `${pass}/${pass + fail} passed` : `${fail} failed`}</span>
+    <span class="verdict ${proven ? 'ok' : 'bad'}"><span class="dot ${proven ? 'ok' : 'bad'}"></span>${proven ? `${pass}/${pass + fail} passed` : `${fail} failed`}${manual > 0 ? ` · ${manual} manual` : ''}</span>
     <span class="grow"></span>
     <button class="theme" id="theme" title="light / dark" aria-label="toggle theme">◑</button>
   </header>
@@ -343,6 +358,7 @@ ${
         <div class="ov" id="ov">
           <div class="reticle" id="reticle"><span class="h"></span><span class="v"></span><span class="p"></span><span class="m"></span></div>
           <div class="mark" id="mark" hidden></div>
+          <div class="manov" id="manov" hidden><div class="manov-ic">⏸</div><div class="manov-h" id="manov-h"></div><div class="manov-s">performed manually — not machine-driven</div></div>
         </div>
       </div>
     </div>
@@ -393,7 +409,10 @@ ${
   if (!DATA) return;
   var INPUT = { tap: 1, fill: 1, swipe: 1 };
   var SPEEDS = [1, 2, 4, 8];
-  var jIdx = 0, speed = 2, reticleOn = true, markOn = true, scrubbing = false;
+  // Only draw the reticle overlay for CLEAN recordings (DATA.overlay). Older
+  // packs baked the reticle into the video — drawing another would double it.
+  var jIdx = 0, speed = 2, reticleOn = !!DATA.overlay, markOn = true, scrubbing = false;
+  if (!DATA.overlay) { var _ob = document.getElementById('ovbtn'); if (_ob) _ob.style.display = 'none'; }
   var $ = function (id) { return document.getElementById(id); };
   var vid = $('vid'), vw = DATA.viewport;
   var J = function () { return DATA.journeys[jIdx]; };
@@ -424,8 +443,17 @@ ${
   }
 
   function paintOverlay(c) {
+    // manual-step overlay: active while the most-recent event is a manual one
+    // (i.e. from the manual step until the next recorded action). Covers the
+    // reticle — a human did this step, there is nothing to point at.
+    var evs = J().events, last = null;
+    for (var q = 0; q < evs.length; q++) { if (evs[q].t <= c) last = evs[q]; else break; }
+    var man = last && last.kind === 'manual' ? last : null;
+    var MO = $('manov');
+    MO.hidden = !man;
+    if (man) $('manov-h').textContent = man.label || 'manual step';
     var R = $('reticle');
-    if (!reticleOn) { R.style.display = 'none'; } else {
+    if (!reticleOn || man) { R.style.display = 'none'; } else {
       var cur = cursorAt(c);
       if (!cur) { R.style.display = 'none'; } else {
         R.style.display = '';
@@ -444,7 +472,7 @@ ${
     var la = null;
     J().events.forEach(function (e) { if (e.kind === 'assert' && e.t <= c && c - e.t < 1100) la = e; });
     var M = $('mark');
-    if (markOn && la) { M.hidden = false; M.className = 'mark' + (la.status === 'PASS' ? '' : ' bad'); M.textContent = la.status === 'PASS' ? '✓' : '✗'; }
+    if (markOn && la && !man) { M.hidden = false; M.className = 'mark' + (la.status === 'PASS' ? '' : ' bad'); M.textContent = la.status === 'PASS' ? '✓' : '✗'; }
     else M.hidden = true;
   }
 
@@ -464,8 +492,9 @@ ${
     $('jtabs').innerHTML = n > 1 ? DATA.journeys.map(function (j, i) { return '<button data-i="' + i + '" class="' + (i === jIdx ? 'on' : '') + '" title="' + escs(j.promise) + '">' + (i + 1) + '</button>'; }).join('') : '';
     var j = J();
     $('promise').innerHTML = (n > 1 ? '<b>Journey ' + (jIdx + 1) + '</b> — ' : '') + escs(j.promise || j.name) + '  ·  ' + j.pass + '/' + (j.pass + j.fail);
-    $('ticks').innerHTML = j.events.filter(function (e) { return e.kind === 'assert'; }).map(function (e) {
-      return '<span class="tk ' + (e.status === 'PASS' ? 'ok' : 'bad') + '" style="left:' + Math.min(100, (e.t / D()) * 100) + '%"></span>';
+    $('ticks').innerHTML = j.events.filter(function (e) { return e.kind === 'assert' || e.kind === 'manual'; }).map(function (e) {
+      var cls = e.kind === 'manual' ? 'man' : (e.status === 'PASS' ? 'ok' : 'bad');
+      return '<span class="tk ' + cls + '" style="left:' + Math.min(100, (e.t / D()) * 100) + '%"></span>';
     }).join('');
   }
   function switchJourney(i) {
@@ -517,7 +546,7 @@ ${
 </html>
 `;
   fs.writeFileSync(path.join(folder, 'REPORT.html'), html);
-  return { pass, fail, proven, pairs: pairs.length, recorded: jr.length };
+  return { pass, fail, manual, proven, pairs: pairs.length, recorded: jr.length };
 }
 
 // replay.gif — the shareable artifact GitHub animates in REPORT.md / PRs.

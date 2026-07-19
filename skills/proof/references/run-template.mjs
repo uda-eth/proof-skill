@@ -86,6 +86,31 @@ async function swipe(page, j, [x, y], [x2, y2], label = '') {
   await page.waitForTimeout(250);
 }
 
+/**
+ * A step a machine physically can't perform — fingerprint/passkey, CAPTCHA,
+ * OAuth consent, 3DS/OTP, a native OS dialog. NEVER fabricate a recording for
+ * these. Instead:
+ *   - pass a `stage` fn to apply its EFFECT via API/DB (headless/CI), so the
+ *     journey continues and you can still assert the real outcome, or
+ *   - run interactively (a TTY): the run pauses, you do it live in the browser,
+ *     press Enter, and the recording captures the real thing.
+ * Either way the step is logged as MANUAL and shown as manual in the report —
+ * never blended into the machine-driven steps. Always rec() the OUTCOME after.
+ */
+async function manual(page, j, label, { stage } = {}) {
+  ev(j, { kind: 'manual', label });
+  results.push({ journey: j, step: label, status: 'MANUAL', note: 'human / staged — not machine-driven' });
+  if (stage) {
+    await stage();
+  } else if (process.stdin.isTTY && process.stdout.isTTY && !process.env.PROOF_MANUAL) {
+    process.stdout.write(`\n   ⏸  MANUAL: ${label}\n      perform it in the browser, then press Enter to continue… `);
+    await new Promise(res => { process.stdin.resume(); process.stdin.once('data', () => { process.stdin.pause(); res(); }); });
+  } else {
+    console.log(`   ⏸  MANUAL (unattended): ${label} — stage its effect or run interactively`);
+  }
+  await page.waitForTimeout(200);
+}
+
 /** Navigate; the reticle survives across documents via sessionStorage. */
 async function navTo(page, j, url, label = '') {
   await page.goto(url, { waitUntil: 'networkidle' });
@@ -280,7 +305,9 @@ async function main() {
   if (REPLAY)
     fs.writeFileSync(
       path.join(FOLDER, 'replay.json'),
-      JSON.stringify({ device: DEVICE, viewport: VIEWPORT, journeys: replays }, null, 1)
+      // overlay:true marks the video as CLEAN (reticle drawn by the player, not
+      // baked in) so the player knows to draw one reticle, not double an old one.
+      JSON.stringify({ device: DEVICE, viewport: VIEWPORT, overlay: true, journeys: replays }, null, 1)
     );
   const { pass, fail } = await writeReports({
     folder: FOLDER,

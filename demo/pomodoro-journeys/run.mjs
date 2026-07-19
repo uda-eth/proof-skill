@@ -55,6 +55,30 @@ async function tap(page, j, selector, label = '') {
   await el.click();
   await page.waitForTimeout(250);
 }
+/**
+ * A step a machine physically can't perform — fingerprint/passkey, CAPTCHA,
+ * OAuth consent, 3DS/OTP, a native OS dialog. NEVER fabricate a recording for
+ * these. Instead:
+ *   - pass a `stage` fn to apply its EFFECT via API/DB (headless/CI), so the
+ *     journey continues and you can still assert the real outcome, or
+ *   - run interactively (a TTY): the run pauses, you do it live in the browser,
+ *     press Enter, and the recording captures the real thing.
+ * Either way the step is logged as MANUAL and shown as manual in the report —
+ * never blended into the machine-driven steps. Always rec() the OUTCOME after.
+ */
+async function manual(page, j, label, { stage } = {}) {
+  ev(j, { kind: 'manual', label });
+  results.push({ journey: j, step: label, status: 'MANUAL', note: 'human / staged — not machine-driven' });
+  if (stage) {
+    await stage();
+  } else if (process.stdin.isTTY && process.stdout.isTTY && !process.env.PROOF_MANUAL) {
+    process.stdout.write(`\n   ⏸  MANUAL: ${label}\n      perform it in the browser, then press Enter to continue… `);
+    await new Promise(res => { process.stdin.resume(); process.stdin.once('data', () => { process.stdin.pause(); res(); }); });
+  } else {
+    console.log(`   ⏸  MANUAL (unattended): ${label} — stage its effect or run interactively`);
+  }
+  await page.waitForTimeout(200);
+}
 async function navTo(page, j, url, label = '') {
   await page.goto(url, { waitUntil: 'networkidle' });
   ev(j, { kind: 'nav', label: label || url.replace(BASE, '') || '/' });
@@ -133,6 +157,11 @@ J('01-focus-cycle', async () => {
   const j = '01-focus-cycle';
   const s = await freshSession(j);
   await navTo(s.page, j, BASE);
+  // A native notification-permission prompt is a genuine OS dialog Playwright
+  // can't click — mark it MANUAL. The staged no-op keeps the demo automated
+  // (interactively, manual() would pause here for a human); the report shows
+  // this as a manual step, never blended into the machine-driven assertions.
+  await manual(s.page, j, 'grant notification permission', { stage: async () => { await new Promise(r => setTimeout(r, 1500)); } });
   rec(j, 'idle timer shows the full 25:00 focus block', (await timeText(s.page)) === '25:00');
   rec(j, 'mode chip reads Focus', /focus/i.test(await modeText(s.page)));
   rec(j, 'primary control offers Start', (await startLabel(s.page)) === 'Start');
@@ -239,7 +268,7 @@ async function main() {
   if (REPLAY)
     fs.writeFileSync(
       path.join(FOLDER, 'replay.json'),
-      JSON.stringify({ device: DEVICE, viewport: VIEWPORT, journeys: replays }, null, 1)
+      JSON.stringify({ device: DEVICE, viewport: VIEWPORT, overlay: true, journeys: replays }, null, 1)
     );
   const PROMISES = {
     '01-focus-cycle':
@@ -248,14 +277,14 @@ async function main() {
     '03-slices-persist': 'A completed focus block earns a slice that survives a full reload',
     '04-reset-no-credit': 'Reset restores the full block — and never awards a slice for abandoned work',
   };
-  const { pass, fail } = await writeReports({
+  const { pass, fail, manual } = await writeReports({
     folder: FOLDER,
     base: BASE,
     title: 'wedge pomodoro user journeys',
     results,
     promises: PROMISES,
   });
-  console.log(`\n${pass} passed / ${fail} failed — REPORT.md + REPORT.html written`);
+  console.log(`\n${pass} passed / ${fail} failed${manual ? ` / ${manual} manual` : ''} — REPORT.md + REPORT.html written`);
   process.exit(fail ? 1 : 0);
 }
 main();
