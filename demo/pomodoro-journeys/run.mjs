@@ -1,8 +1,8 @@
 // /proof demo — user journeys for the wedge pomodoro app (demo/pomodoro-app).
 // Self-contained: spawns a static server for the app, drives it in real Chrome
 // at phone size, asserts every step, screenshots every state, and SCREEN-
-// RECORDS every journey — a reticle injected into the live page glides to
-// each input before it lands, so the video shows the test happening.
+// RECORDS every journey (clean video; the player draws the reticle overlay
+// from the logged input coordinates).
 // Writes report.json + REPORT.md + the REPORT.html proof page (+ replay.gif).
 //   node demo/pomodoro-journeys/run.mjs              # prove this build
 //   node demo/pomodoro-journeys/run.mjs --baseline   # capture the merge-base
@@ -33,88 +33,26 @@ const results = [];
 let browser;
 
 // ── replay capture: screen-recorded video + input log → the REPORT.html player ─────────
-// The run is actually recorded: each journey's context captures video, and a
-// reticle injected into the live page (pointer-events: none) glides to every
-// recorded input coordinate before the click lands. Real datapoints: every
-// target is the element's boundingBox center, logged to replay.json for the
-// player's timeline, ledger sync, and HUD. Hidden during shot() so asserted
-// evidence screenshots stay clean. Off in --baseline or with --no-replay.
+// The run is recorded as a CLEAN screen video (no cursor baked in). Every
+// tap logs its boundingBox center to replay.json; the player draws the reticle
+// from those coordinates on top of the video, so it can be toggled off.
+// Off in --baseline or with --no-replay.
 const REPLAY = !BASELINE && !ARGS.includes('--no-replay');
 const replays = {};
 const rp = j => (replays[j] ??= { t0: Date.now(), events: [], net: [] });
 const ev = (j, e) => {
   if (REPLAY) rp(j).events.push({ t: Date.now() - rp(j).t0, ...e });
 };
-const CURSOR_INIT = () => {
-  if (window.__pfInit) return;
-  window.__pfInit = true;
-  const boot = () => {
-    const w = document.createElement('div');
-    w.id = '__pf';
-    w.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:2147483647';
-    w.innerHTML =
-      '<div id="__pfh" style="position:absolute;left:0;right:0;height:1px;background:rgba(255,255,255,.95);box-shadow:0 0 0 .5px rgba(8,10,14,.5)"></div>' +
-      '<div id="__pfv" style="position:absolute;top:0;bottom:0;width:1px;background:rgba(255,255,255,.95);box-shadow:0 0 0 .5px rgba(8,10,14,.5)"></div>' +
-      '<div id="__pfp" style="position:absolute;width:30px;height:30px;border-radius:12px;border:2.5px solid #fff;transform:translate(-50%,-50%);opacity:0"></div>' +
-      '<div id="__pfr" style="position:absolute;width:30px;height:30px;border-radius:10px;border:2px solid #fff;background:rgba(14,16,20,.55);box-shadow:0 2px 12px rgba(8,10,14,.5);transform:translate(-50%,-50%);display:grid;place-items:center;color:#fff;font:700 12px ui-monospace,monospace">●</div>';
-    document.body.appendChild(w);
-    let pos = null;
-    try { pos = JSON.parse(sessionStorage.__pfpos); } catch { /* first page */ }
-    pos = pos || { x: innerWidth / 2, y: innerHeight / 2 };
-    const apply = () => {
-      w.querySelector('#__pfh').style.top = pos.y + 'px';
-      w.querySelector('#__pfv').style.left = pos.x + 'px';
-      const r = w.querySelector('#__pfr');
-      r.style.left = pos.x + 'px';
-      r.style.top = pos.y + 'px';
-    };
-    apply();
-    const ease = t => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
-    window.__pfMove = (x, y, ms, glyph) =>
-      new Promise(done => {
-        if (glyph) w.querySelector('#__pfr').textContent = glyph;
-        const from = { ...pos };
-        const t0 = performance.now();
-        const step = now => {
-          const k = ms ? Math.min(1, (now - t0) / ms) : 1;
-          pos = { x: from.x + (x - from.x) * ease(k), y: from.y + (y - from.y) * ease(k) };
-          apply();
-          if (k < 1) requestAnimationFrame(step);
-          else {
-            sessionStorage.__pfpos = JSON.stringify(pos);
-            done();
-          }
-        };
-        requestAnimationFrame(step);
-      });
-    window.__pfPulse = () => {
-      const p = w.querySelector('#__pfp');
-      p.style.left = pos.x + 'px';
-      p.style.top = pos.y + 'px';
-      p.animate(
-        [
-          { opacity: 1, transform: 'translate(-50%,-50%) scale(1)' },
-          { opacity: 0, transform: 'translate(-50%,-50%) scale(2.4)' },
-        ],
-        { duration: 420, easing: 'ease-out' }
-      );
-    };
-    window.__pfHide = () => (w.style.display = 'none');
-    window.__pfShow = () => (w.style.display = '');
-  };
-  if (document.body) boot();
-  else addEventListener('DOMContentLoaded', boot);
+const center = async el => {
+  const box = await el.boundingBox().catch(() => null);
+  return box ? { x: box.x + box.width / 2, y: box.y + box.height / 2 } : { x: 0, y: 0 };
 };
-const cursor = (page, fn, args) => (REPLAY ? page.evaluate(fn, args).catch(() => {}) : null);
+/** Tap an element — logs the click point for the player's reticle overlay. */
 async function tap(page, j, selector, label = '') {
   const el = page.locator(selector).first();
-  const box = await el.boundingBox().catch(() => null);
-  const x = box ? box.x + box.width / 2 : 0;
-  const y = box ? box.y + box.height / 2 : 0;
-  await cursor(page, p => window.__pfMove && window.__pfMove(p.x, p.y, 350, '●'), { x, y });
+  const { x, y } = await center(el);
   ev(j, { kind: 'tap', x, y, label });
   await el.click();
-  await cursor(page, () => window.__pfPulse && window.__pfPulse());
   await page.waitForTimeout(250);
 }
 async function navTo(page, j, url, label = '') {
@@ -150,12 +88,10 @@ function rec(j, step, ok, note = '') {
 }
 async function shot(page, j, idx, name) {
   await page.waitForTimeout(400);
-  await cursor(page, () => window.__pfHide && window.__pfHide());
   await page.screenshot({
     path: path.join(dir(j), String(idx).padStart(2, '0') + '-' + name + '.png'),
     fullPage: false,
   });
-  await cursor(page, () => window.__pfShow && window.__pfShow());
   ev(j, { kind: 'shot', label: name });
 }
 
@@ -167,7 +103,6 @@ async function freshSession(j) {
   });
   // Baseline drives a build the feature doesn't exist on — fail fast, not 30s.
   if (BASELINE) ctx.setDefaultTimeout(3000);
-  if (REPLAY) await ctx.addInitScript(CURSOR_INIT);
   const page = await ctx.newPage();
   if (REPLAY) rp(j).t0 = Date.now(); // align the event clock with the recording
   page.on('pageerror', e => rec(j, '(pageerror)', false, e.message.slice(0, 140)));

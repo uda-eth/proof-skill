@@ -1,25 +1,21 @@
 // /proof report writer — copy next to run.mjs as report.mjs (no edits needed).
-// One source of truth: the results[] your runner rec()'d plus the shots and
-// screen recordings on disk. Writes:
+// One source of truth: the results[] your runner rec()'d, the shots, and the
+// clean screen recordings on disk. Writes:
 //   report.json  — machine-readable
-//   REPORT.md    — GitHub-renderable: TLDR verdict, replay.gif, before/after
-//                  table, per-step detail
-//   REPORT.html  — THE proof page, one self-contained file: the run's real
-//                  screen recordings in a scrubbable player up top (timeline,
-//                  synced ledger, network log), then the evidence — verdict
-//                  stamp, TLDR, before/after sliders, journey ledgers with
-//                  filmstrips, viewport sweep. Everything embedded as data
-//                  URIs so it renders anywhere: preview panels, email, Slack.
-// Before/after pairs appear automatically when shots-baseline/ exists (see
-// run.mjs --baseline). No dependencies beyond the playwright you already run;
-// ffmpeg (optional) upgrades embedded video to mp4 and emits replay.gif.
+//   REPORT.md    — GitHub-renderable: verdict, replay.gif, before/after, steps
+//   REPORT.html  — THE proof page: a minimal, monochrome player (video is the
+//                  hero; a synced reticle overlay you can toggle off; no text
+//                  floats on the video) with the evidence tucked in a quiet,
+//                  collapsed section below. Light by default, subtle dark
+//                  toggle. Everything embedded so the one file opens anywhere.
+// The reticle is NOT baked into the recording — the runner records a clean
+// video and logs input coordinates; the player draws the reticle on top, so it
+// can be hidden. Before/after pairs appear when shots-baseline/ exists.
+// No dependencies beyond playwright; ffmpeg (optional) → mp4 + replay.gif.
 import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
 
-// Downscale + JPEG-encode every referenced shot via headless Chromium (no
-// image deps needed — the runner already has playwright). Falls back to
-// relative paths if playwright is unavailable.
 async function embedImages(folder, rels, maxWidth = 640, quality = 0.72) {
   try {
     const { chromium } = await import('playwright');
@@ -80,7 +76,6 @@ export async function writeReports({ folder, base, title = 'user journeys', resu
   const failed = results.filter(r => r.status === 'FAIL');
   const viewports = pngs(path.join(folder, 'shots', 'viewports')).map(f => `shots/viewports/${f}`);
 
-  // before/after pairs: same journey + same filename on both sides
   const pairs = [];
   for (const j of journeys) {
     const before = new Set(pngs(path.join(folder, 'shots-baseline', j.name)));
@@ -95,17 +90,13 @@ export async function writeReports({ folder, base, title = 'user journeys', resu
     path.join(folder, 'report.json'),
     JSON.stringify(
       {
-        title,
-        base,
-        generated,
+        title, base, generated,
         verdict: proven ? 'PROVEN' : 'NOT PROVEN',
-        pass,
-        fail,
+        pass, fail,
         journeys: journeys.map(({ name, promise, pass, fail }) => ({ name, promise, pass, fail })),
         results,
       },
-      null,
-      2
+      null, 2
     )
   );
 
@@ -129,7 +120,7 @@ export async function writeReports({ folder, base, title = 'user journeys', resu
       .map(j => {
         const r = replay.journeys[j.name];
         const webm = path.join(folder, r.video);
-        let src = null;
+        let vsrc = null;
         if (ffmpeg) {
           const tmp = webm + '.tmp.mp4';
           try {
@@ -137,19 +128,19 @@ export async function writeReports({ folder, base, title = 'user journeys', resu
               `ffmpeg -y -i "${webm}" -c:v libx264 -pix_fmt yuv420p -movflags +faststart -crf 28 -an "${tmp}"`,
               { stdio: 'pipe' }
             );
-            src = 'data:video/mp4;base64,' + fs.readFileSync(tmp).toString('base64');
+            vsrc = 'data:video/mp4;base64,' + fs.readFileSync(tmp).toString('base64');
             fs.rmSync(tmp, { force: true });
           } catch {
-            src = null;
+            vsrc = null;
           }
         }
-        if (!src) src = 'data:video/webm;base64,' + fs.readFileSync(webm).toString('base64');
+        if (!vsrc) vsrc = 'data:video/webm;base64,' + fs.readFileSync(webm).toString('base64');
         return {
           name: j.name,
           promise: j.promise,
           pass: j.pass,
           fail: j.fail,
-          video: src,
+          video: vsrc,
           events: r.events,
           net: (r.net || []).filter(n => n.type !== 'image' || n.status >= 400),
         };
@@ -178,9 +169,6 @@ export async function writeReports({ folder, base, title = 'user journeys', resu
     for (const p of pairs)
       md += `| ${p.journey}<br>\`${p.step}\` | <img src="${p.before}" width="200"> | <img src="${p.after}" width="200"> |\n`;
     md += '\n';
-  } else {
-    const money = journeys.map(j => j.shots.at(-1)).filter(Boolean);
-    if (money.length) md += money.map(s => `<img src="${s}" width="180">`).join(' ') + '\n\n';
   }
   for (const j of journeys) {
     md += `## ${j.name}\n\n`;
@@ -191,475 +179,339 @@ export async function writeReports({ folder, base, title = 'user journeys', resu
     md += '\n';
   }
   if (viewports.length) {
-    md += `## Viewport sweep\n\n`;
-    md += viewports.map(v => `<img src="${v}" height="150">`).join(' ') + '\n';
+    md += `## Viewport sweep\n\n` + viewports.map(v => `<img src="${v}" height="150">`).join(' ') + '\n';
   }
   fs.writeFileSync(path.join(folder, 'REPORT.md'), md);
 
-  // ── REPORT.html — THE proof page ──────────────────────────────────────────
-  // One system, one file: the dark instrument. Player up top (when the run
-  // was recorded), evidence below. Deliberately single-theme — it's an
-  // editor, and the app's own screenshots/recordings carry the color.
+  // ── REPORT.html — THE proof page (minimal, monochrome, video-first) ───────
   const embedded = await embedImages(folder, [
     ...new Set([...journeys.flatMap(j => j.shots), ...pairs.map(p => p.before), ...viewports]),
   ]);
-  const src = rel => embedded[rel] || rel;
-  const badge = j => `<span class="badge ${j.fail ? 'bad' : 'ok'}">${j.fail ? '✗ ' : '✓ '}${j.pass}/${j.pass + j.fail}</span>`;
-  const thumb = (rel, cap) =>
-    `<a href="${rel}" target="_blank"><img src="${src(rel)}" alt="${esc(cap)}" loading="lazy"><span class="cap">${esc(cap)}</span></a>`;
+  const isrc = rel => embedded[rel] || rel;
   const data = hasPlayer
     ? JSON.stringify({ viewport: replay.viewport, journeys: jr }).replace(/</g, '\\u003c')
     : 'null';
-  const ar = hasPlayer ? `${replay.viewport.width} / ${replay.viewport.height}` : '390 / 844';
-  const device = hasPlayer ? (replay.device || (replay.viewport.width >= 1000 ? 'desktop' : 'phone')) : 'phone';
+  const arNum = hasPlayer ? (replay.viewport.width / replay.viewport.height).toFixed(4) : (390 / 844).toFixed(4);
+  const evMeta = [
+    `${journeys.length} ${journeys.length === 1 ? 'journey' : 'journeys'}`,
+    `${pass + fail} assertions`,
+    pairs.length ? 'before / after' : null,
+    viewports.length ? 'viewport sweep' : null,
+  ].filter(Boolean).join('  ·  ');
 
-  const playerSection = !hasPlayer
-    ? ''
-    : `
-  <div class="player dev-${device}">
-    <div class="pbar"><nav class="jtabs" id="jtabs"></nav><span class="rec"><i></i>RECORDED RUN</span></div>
-    <div class="stage">
-      <div class="devcol"><div class="bezel"><div class="chrome"><span class="tl"></span><span class="tl"></span><span class="tl"></span><span class="url">${esc(base)}</span></div><div class="screen">
-        <video id="vid" playsinline muted preload="auto"></video>
-        <div class="chip" id="chip" hidden></div>
-        <div class="hud" id="hud" hidden></div>
-        <div class="toast" id="toast" hidden></div>
-      </div></div></div>
-      <aside class="side">
-        <nav class="ptabs" id="ptabs">
-          <button data-p="summary" class="on">Summary</button>
-          <button data-p="steps">Steps</button>
-          <button data-p="network">Network</button>
-          <button data-p="perf">Performance</button>
-        </nav>
-        <div class="panel summary on" id="p-summary"></div>
-        <div class="panel" id="p-steps"></div>
-        <div class="panel" id="p-network"></div>
-        <div class="panel" id="p-perf"></div>
-      </aside>
-    </div>
-    <div class="transport">
-      <button class="tbtn" id="play" title="play/pause">▶</button>
-      <div class="seg" id="speed"><button data-s="1">1×</button><button data-s="2" class="on">2×</button><button data-s="4">4×</button><button data-s="8">8×</button></div>
-      <div class="trackwrap"><div class="track"><div class="prog" id="prog"></div><div class="ticks" id="ticks"></div><div class="playhead" id="playhead"></div></div><input type="range" id="scrub" min="0" max="1000" value="0" aria-label="scrub timeline"></div>
-      <span class="clock" id="clock"></span>
-      <button class="tbtn on" id="loopb" title="loop">⟲</button>
-      <button class="tbtn" id="fs" title="fullscreen (f)">⛶</button>
-    </div>
-  </div>
-  <p class="playhint"><kbd>space</kbd> play/pause · <kbd>←</kbd><kbd>→</kbd> jump events · drag the timeline · scroll for the full evidence ↓</p>`;
+  const evJourney = j => `<section class="ej" id="${esc(j.name)}">
+      <div class="ej-h">
+        <span class="dot ${j.fail ? 'bad' : 'ok'}"></span>
+        <span class="ej-promise">${esc(j.promise || j.name)}</span>
+        <span class="ej-count">${j.pass}/${j.pass + j.fail}</span>
+      </div>
+      <ul class="ej-steps">
+        ${j.steps.map(r => `<li class="${r.status === 'PASS' ? 'y' : 'n'}"><span class="tick">${r.status === 'PASS' ? '✓' : '✗'}</span>${esc(r.step)}${r.note ? `<span class="note"> — ${esc(r.note)}</span>` : ''}</li>`).join('\n        ')}
+      </ul>
+      ${j.shots.length ? `<div class="strip">${j.shots.map(s => `<a href="${s}" target="_blank"><img src="${isrc(s)}" alt="${esc(stepLabel(path.basename(s)))}" loading="lazy"></a>`).join('')}</div>` : ''}
+    </section>`;
 
   const html = `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Proof — ${esc(title)}</title>
+<title>${esc(title)} — proof</title>
 <style>
   :root {
-    --bg: #0e1014; --card: #15181e; --line: #252a32; --ink: #e8eaee; --mute: #868e99;
-    --ok: #46b981; --bad: #e0645f; --dots: #333a44;
-    --mono: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, Consolas, monospace;
-    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    --bg: #f6f6f4; --surface: #fff; --ink: #1b1c1e; --mute: #74767b; --faint: #a2a4a8;
+    --line: #e7e7e3; --line2: #dcdcd7; --field: #ecece8; --ok: #3f7d55; --bad: #b1463c;
+    --sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+    --vw: ${arNum};
+  }
+  :root[data-theme="dark"] {
+    --bg: #151617; --surface: #1c1d1f; --ink: #e8e8e5; --mute: #9a9ba0; --faint: #66686c;
+    --line: #292a2c; --line2: #34353800; --field: #292a2c; --ok: #63b183; --bad: #d47a70;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font: 14.5px/1.55 var(--sans); background: var(--bg); color: var(--ink); padding: 14px 22px 56px; }
-  .wrap { max-width: 1420px; margin: 0 auto; }
+  html, body { background: var(--bg); }
+  body { font: 15px/1.55 var(--sans); color: var(--ink); padding: 26px 24px 48px; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 1080px; margin: 0 auto; }
   a { color: inherit; }
-  a:focus-visible, button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 3px; }
 
-  .mast { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 10px; }
-  .eyebrow { font: 600 10.5px var(--mono); letter-spacing: 0.24em; text-transform: uppercase; color: var(--mute); }
-  h1 { font: 700 17px/1.2 var(--mono); letter-spacing: -0.02em; margin: 0; }
-  .meta { color: var(--mute); font-size: 12.5px; margin: 0; }
-  .meta code { font: 600 12px var(--mono); color: var(--ink); }
-  .stamp { margin-left: auto; font: 800 11px/1 var(--mono); letter-spacing: 0.2em; text-transform: uppercase; text-indent: 0.2em; padding: 8px 12px; border: 2px solid currentColor; border-radius: 4px; outline: 1px solid currentColor; outline-offset: 2px; transform: rotate(-3deg); }
-  .stamp.ok { color: var(--ok); } .stamp.bad { color: var(--bad); }
+  header { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; }
+  h1 { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
+  .verdict { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--mute); font-variant-numeric: tabular-nums; }
+  .verdict .dot { width: 7px; height: 7px; border-radius: 50%; }
+  .dot.ok { background: var(--ok); } .dot.bad { background: var(--bad); }
+  .verdict.ok { color: var(--ok); } .verdict.bad { color: var(--bad); }
+  .grow { flex: 1; }
+  .subtle { color: var(--faint); font-size: 13px; }
+  .theme { width: 32px; height: 32px; border-radius: 8px; color: var(--mute); font-size: 15px; line-height: 1; }
+  .theme:hover { background: var(--field); color: var(--ink); }
 
-  .player { background: var(--bg); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; box-shadow: 0 30px 70px -35px rgba(0, 0, 0, 0.7); height: calc(100vh - 110px); min-height: 540px; display: flex; flex-direction: column; }
-  .pbar { display: flex; align-items: center; gap: 8px; padding: 13px 18px; border-bottom: 1px solid var(--line); overflow-x: auto; flex: none; }
-  .jtabs { display: flex; gap: 6px; }
-  .jtabs button { display: inline-flex; align-items: center; gap: 8px; font: 600 12px var(--mono); padding: 8px 13px; border: 1px solid transparent; background: none; color: var(--mute); border-radius: 8px; cursor: pointer; white-space: nowrap; }
-  .jtabs button:hover { color: var(--ink); }
-  .jtabs button.on { color: var(--ink); background: var(--card); border-color: var(--line); }
-  .jtabs .jdot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); }
-  .jtabs .jdot.bad { background: var(--bad); }
-  .rec { margin-left: auto; display: inline-flex; align-items: center; gap: 7px; font: 700 10px var(--mono); letter-spacing: 0.18em; color: var(--mute); }
-  .rec i { width: 8px; height: 8px; border-radius: 50%; background: var(--bad); animation: blink 1.6s infinite; }
-  @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.25; } }
-  @media (prefers-reduced-motion: reduce) { .rec i { animation: none; } }
+  /* ── player: the video is the hero ── */
+  .player { display: flex; flex-direction: column; gap: 12px; }
+  .viewport { display: flex; align-items: center; justify-content: center; }
+  .frame { position: relative; width: min(100%, calc(66vh * var(--vw))); aspect-ratio: var(--vw); background: #0c0d0e; border: 1px solid var(--line2); border-radius: 12px; overflow: hidden; box-shadow: 0 1px 0 rgba(0,0,0,0.02), 0 18px 40px -28px rgba(0,0,0,0.45); }
+  .frame video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+  .ov { position: absolute; inset: 0; pointer-events: none; }
+  .reticle { position: absolute; inset: 0; }
+  .reticle .h, .reticle .v { position: absolute; background: rgba(255,255,255,0.9); box-shadow: 0 0 0 0.5px rgba(10,12,16,0.4); }
+  .reticle .h { left: 0; right: 0; height: 1px; } .reticle .v { top: 0; bottom: 0; width: 1px; }
+  .reticle .m { position: absolute; width: 26px; height: 26px; border-radius: 8px; border: 2px solid #fff; background: rgba(16,18,22,0.35); box-shadow: 0 1px 8px rgba(10,12,16,0.4); transform: translate(-50%,-50%); }
+  .reticle .p { position: absolute; width: 26px; height: 26px; border-radius: 9px; border: 2px solid #fff; transform: translate(-50%,-50%); opacity: 0; }
+  .mark { position: absolute; top: 12px; right: 12px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 14px; font-weight: 700; color: #fff; background: var(--ok); box-shadow: 0 2px 10px rgba(10,12,16,0.35); }
+  .mark.bad { background: var(--bad); }
+  .viewport:fullscreen { width: 100vw; height: 100vh; background: #000; }
+  .viewport:fullscreen .frame { width: min(100vw, calc(100vh * var(--vw))); border: none; border-radius: 0; box-shadow: none; }
 
-  .stage { display: flex; gap: 24px; align-items: stretch; padding: 18px; flex: 1; min-height: 0; }
-  .devcol { flex: none; height: 100%; min-height: 0; }
-  .bezel { background: #05060a; border-radius: 42px; padding: 9px; box-shadow: inset 0 0 0 1.5px #2e333c, 0 18px 40px -20px rgba(0,0,0,0.8); height: 100%; }
-  .screen { position: relative; border-radius: 33px; overflow: hidden; background: #fff; height: 100%; aspect-ratio: ${ar}; }
-  .screen video { display: block; width: 100%; height: 100%; object-fit: cover; }
-  /* desktop device: the phone bezel becomes a browser window, panels drop below */
-  .chrome { display: none; }
-  .player.dev-desktop .stage { flex-direction: column; }
-  .player.dev-desktop .devcol { flex: 1; min-height: 0; width: 100%; height: auto; display: flex; align-items: center; justify-content: center; }
-  .player.dev-desktop .bezel { height: 100%; max-width: 100%; margin: 0; padding: 0; border-radius: 12px; background: #0b0d11; box-shadow: 0 18px 40px -20px rgba(0,0,0,0.8), inset 0 0 0 1px var(--line); display: flex; flex-direction: column; }
-  .player.dev-desktop .chrome { display: flex; align-items: center; gap: 7px; padding: 9px 13px; border-bottom: 1px solid var(--line); flex: none; }
-  .player.dev-desktop .chrome .tl { width: 11px; height: 11px; border-radius: 50%; background: #3a4048; }
-  .player.dev-desktop .chrome .url { margin-left: 10px; font: 500 11px var(--mono); color: var(--mute); background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 3px 11px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  /* window hugs the video — flex gives it the media-area height, aspect-ratio
-     derives its width, align-self:center stops it stretching wide (no side bars) */
-  .player.dev-desktop .screen { flex: 1; min-height: 0; width: auto; align-self: center; max-width: 100%; border-radius: 0 0 11px 11px; }
-  .player.dev-desktop .screen video { width: 100%; height: 100%; object-fit: cover; }
-  .player.dev-desktop .side { flex: none; height: 200px; }
-  /* fullscreen: fill the display, letterbox the recording, keep the HUD overlays */
-  .screen:fullscreen { aspect-ratio: auto; width: 100vw; height: 100vh; background: #000; display: flex; align-items: center; justify-content: center; border-radius: 0; }
-  .screen:fullscreen video { width: 100%; height: 100%; object-fit: contain; }
-  .chip { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); max-width: 86%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font: 700 10.5px var(--mono); letter-spacing: 0.06em; padding: 5px 11px; border-radius: 999px; background: rgba(10,12,16,0.82); color: #fff; border: 1px solid rgba(255,255,255,0.22); pointer-events: none; }
-  .hud { position: absolute; left: 10px; bottom: 10px; font: 600 10px var(--mono); letter-spacing: 0.04em; padding: 4px 8px; border-radius: 6px; background: rgba(10,12,16,0.82); color: #cfd4db; border: 1px solid rgba(255,255,255,0.16); font-variant-numeric: tabular-nums; pointer-events: none; }
-  .hud b { color: #fff; }
-  .toast { position: absolute; bottom: 10px; right: 10px; max-width: 70%; font: 600 10.5px var(--mono); padding: 5px 10px; border-radius: 7px; background: rgba(10,12,16,0.88); color: #fff; border-left: 3px solid var(--ok); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
-  .toast.bad { border-left-color: var(--bad); }
+  /* ── control bar ── */
+  .bar { display: flex; align-items: center; gap: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; }
+  .ico { width: 34px; height: 32px; border-radius: 8px; color: var(--mute); display: inline-grid; place-items: center; font-size: 14px; line-height: 1; }
+  .ico:hover { background: var(--field); color: var(--ink); }
+  .ico.txt { width: auto; padding: 0 10px; font: 600 12px var(--mono); }
+  .ico.play { color: var(--ink); }
+  .ico.off { color: var(--faint); opacity: 0.55; }
+  .tc { font: 500 12px var(--mono); color: var(--mute); font-variant-numeric: tabular-nums; min-width: 78px; }
+  .sep { width: 1px; height: 20px; background: var(--line); margin: 0 2px; }
+  .scrubwrap { position: relative; flex: 1; height: 32px; display: flex; align-items: center; }
+  .track { position: absolute; left: 0; right: 0; height: 4px; background: var(--field); border-radius: 3px; }
+  .fill { position: absolute; left: 0; height: 4px; background: var(--mute); border-radius: 3px; width: 0; }
+  .tk { position: absolute; top: 50%; width: 3px; height: 3px; border-radius: 50%; transform: translate(-50%,-50%); }
+  .tk.ok { background: var(--ok); } .tk.bad { background: var(--bad); }
+  #scrub { position: absolute; left: 0; right: 0; width: 100%; margin: 0; height: 32px; opacity: 0; cursor: pointer; }
 
-  .side { border: 1px solid var(--line); border-radius: 12px; background: var(--card); overflow: hidden; flex: 1; min-width: 0; display: flex; flex-direction: column; }
-  .ptabs { display: flex; border-bottom: 1px solid var(--line); }
-  .ptabs button { flex: 1; font: 600 11px var(--mono); letter-spacing: 0.12em; text-transform: uppercase; padding: 13px 4px; background: none; border: none; color: var(--mute); cursor: pointer; border-bottom: 2px solid transparent; }
-  .ptabs button.on { color: var(--ink); border-bottom-color: var(--ink); }
-  .panel { display: none; padding: 14px 16px; }
-  .panel.on { display: block; flex: 1; min-height: 0; overflow-y: auto; }
-  .lsteps { list-style: none; }
-  .lsteps li { display: flex; gap: 11px; align-items: baseline; padding: 8px 2px; font-size: 13px; cursor: pointer; opacity: 0.35; border-top: 1px solid var(--line); transition: opacity 0.2s; }
-  .lsteps li:first-child { border-top: 0; }
-  .lsteps li.done { opacity: 1; }
-  .lsteps li.active { background: rgba(255,255,255,0.05); margin: 0 -8px; padding-left: 10px; padding-right: 8px; border-radius: 7px; }
-  .lsteps .st { flex: none; width: 14px; height: 14px; border-radius: 50%; align-self: center; display: grid; place-items: center; font: 800 9px var(--mono); background: var(--ok); color: #08120c; }
-  .lsteps li.no .st { background: var(--bad); color: #1c0908; }
-  .lsteps .t { margin-left: auto; font: 500 10.5px var(--mono); color: var(--mute); font-variant-numeric: tabular-nums; }
-  .net { width: 100%; border-collapse: collapse; font: 11.5px var(--mono); }
-  .net td { padding: 6px 6px; border-top: 1px solid var(--line); white-space: nowrap; }
-  .net tr:first-child td { border-top: 0; }
-  .net td.u { max-width: 220px; overflow: hidden; text-overflow: ellipsis; color: var(--mute); }
-  .net .s2 { color: var(--ok); } .net .s4 { color: var(--bad); font-weight: 700; }
-  .net td.t { color: var(--mute); font-variant-numeric: tabular-nums; }
-  .perfrow { display: grid; grid-template-columns: 1fr 52px; gap: 10px; align-items: center; padding: 7px 0; font-size: 12.5px; border-top: 1px solid var(--line); }
-  .perfrow:first-child { border-top: 0; }
-  .perfrow .bar { position: relative; height: 4px; background: rgba(255,255,255,0.08); border-radius: 3px; margin-top: 5px; }
-  .perfrow .bar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--ok); border-radius: 3px; }
-  .perfrow.no .bar i { background: var(--bad); }
-  .perfrow .ms { font: 500 10.5px var(--mono); color: var(--mute); text-align: right; font-variant-numeric: tabular-nums; }
-  .summary p { margin: 8px 0; font-size: 13.5px; }
-  .summary .promise { color: var(--mute); }
-  .kv { display: grid; grid-template-columns: auto 1fr; gap: 5px 16px; font: 12px var(--mono); margin-top: 12px; }
-  .kv span:nth-child(odd) { color: var(--mute); }
-  .badge { font: 700 11px var(--mono); letter-spacing: 0.05em; padding: 3px 8px; border: 1px solid currentColor; border-radius: 3px; white-space: nowrap; }
-  .badge.ok { color: var(--ok); } .badge.bad { color: var(--bad); }
+  .cap { display: flex; align-items: center; gap: 14px; padding: 0 2px; min-height: 24px; }
+  .jtabs { display: flex; gap: 5px; }
+  .jtabs button { width: 26px; height: 26px; border-radius: 7px; font: 600 12px var(--mono); color: var(--mute); border: 1px solid transparent; }
+  .jtabs button:hover { background: var(--field); }
+  .jtabs button.on { color: var(--ink); border-color: var(--line2); background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+  .promise { font-size: 13.5px; color: var(--mute); }
+  .promise b { color: var(--ink); font-weight: 600; }
 
-  .transport { display: flex; align-items: center; gap: 14px; padding: 11px 18px 12px; border-top: 1px solid var(--line); flex: none; }
-  .tbtn { font: 700 14px var(--mono); width: 42px; height: 38px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); color: var(--ink); cursor: pointer; }
-  .tbtn:hover { border-color: var(--mute); }
-  .tbtn.on { border-color: var(--ink); }
-  .seg { display: flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
-  .seg button { font: 600 11px var(--mono); padding: 9px 10px; background: none; border: none; color: var(--mute); cursor: pointer; border-left: 1px solid var(--line); }
-  .seg button:first-child { border-left: 0; }
-  .seg button.on { color: var(--bg); background: var(--ink); }
-  .trackwrap { position: relative; flex: 1; height: 40px; }
-  .track { position: absolute; inset: 6px 0; background: rgba(255,255,255,0.05); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
-  .prog { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: rgba(255,255,255,0.09); }
-  .ticks { position: absolute; inset: 0; }
-  .tick { position: absolute; bottom: 3px; width: 2px; height: 8px; border-radius: 1px; background: rgba(255,255,255,0.55); transform: translateX(-50%); }
-  .tick.ok { background: var(--ok); height: 10px; top: 3px; bottom: auto; }
-  .tick.bad { background: var(--bad); height: 10px; top: 3px; bottom: auto; }
-  .tick.shotm { background: rgba(255,255,255,0.25); width: 1px; height: 100%; top: 0; }
-  .playhead { position: absolute; top: 0; bottom: 0; width: 2px; background: #fff; transform: translateX(-50%); box-shadow: 0 0 8px rgba(255,255,255,0.5); }
-  .playhead::after { content: ''; position: absolute; top: -1px; left: 50%; transform: translateX(-50%); width: 9px; height: 9px; border-radius: 50%; background: #fff; }
-  #scrub { position: absolute; inset: 0; width: 100%; opacity: 0; cursor: pointer; }
-  .clock { font: 600 12px var(--mono); color: var(--mute); min-width: 96px; text-align: right; font-variant-numeric: tabular-nums; }
-  .playhint { color: var(--mute); font-size: 11.5px; margin: 8px 2px 0; }
-  kbd { font: 600 10.5px var(--mono); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; background: var(--card); }
-
-  h2 { display: flex; align-items: baseline; gap: 14px; font: 700 12px var(--mono); letter-spacing: 0.2em; text-transform: uppercase; color: var(--mute); margin: 42px 0 16px; }
-  h2::after { content: ''; flex: 1; border-top: 1px solid var(--line); align-self: center; }
-  h2 .h2note { font: 400 12px var(--sans); letter-spacing: 0; text-transform: none; }
-  .failbox { border: 1px solid var(--bad); background: rgba(224,100,95,0.08); border-radius: 10px; padding: 14px 18px; margin-top: 22px; }
-  .failbox strong { font: 700 12px var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--bad); }
-  .failbox li { margin: 6px 0 0 18px; font-size: 13.5px; }
-  .tldr { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--card); }
-  .tldr a { display: grid; grid-template-columns: 200px 1fr auto; gap: 18px; align-items: baseline; padding: 13px 18px; text-decoration: none; border-top: 1px solid var(--line); }
-  .tldr a:first-child { border-top: 0; }
-  .tldr a:hover { background: rgba(255,255,255,0.04); }
-  .tldr .name { font: 600 13px var(--mono); }
-  .tldr .promise { color: var(--mute); font-size: 13.5px; }
-  @media (max-width: 640px) { .tldr a { grid-template-columns: 1fr auto; } .tldr .promise { display: none; } }
-
-  .pairs { display: grid; grid-template-columns: repeat(auto-fill, minmax(212px, 1fr)); gap: 14px; }
-  .pair { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--card); }
-  .plabel { padding: 10px 13px 9px; border-bottom: 1px solid var(--line); }
-  .plabel .pj { display: block; font: 500 10px var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--mute); }
-  .plabel .ps { font: 600 12.5px var(--mono); }
+  /* ── evidence: quiet, collapsed ── */
+  .evidence { margin-top: 30px; border-top: 1px solid var(--line); }
+  .evidence > summary { list-style: none; cursor: pointer; display: flex; align-items: baseline; gap: 12px; padding: 16px 2px; color: var(--mute); font-size: 13px; }
+  .evidence > summary::-webkit-details-marker { display: none; }
+  .evidence > summary::before { content: '▸'; color: var(--faint); font-size: 11px; }
+  .evidence[open] > summary::before { content: '▾'; }
+  .evidence > summary b { color: var(--ink); font-weight: 600; font-size: 13px; }
+  .ev-body { display: flex; flex-direction: column; gap: 26px; padding: 6px 2px 8px; }
+  .failbox { border: 1px solid var(--bad); border-radius: 10px; padding: 12px 15px; color: var(--bad); font-size: 13px; }
+  .failbox b { display: block; margin-bottom: 6px; font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; }
+  .failbox li { margin-left: 16px; }
+  .ej { display: flex; flex-direction: column; gap: 10px; }
+  .ej-h { display: flex; align-items: center; gap: 10px; }
+  .ej-h .dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+  .ej-promise { font-size: 14px; font-weight: 500; }
+  .ej-count { margin-left: auto; font: 500 12px var(--mono); color: var(--mute); font-variant-numeric: tabular-nums; }
+  .ej-steps { list-style: none; display: flex; flex-direction: column; gap: 2px; }
+  .ej-steps li { display: flex; gap: 9px; font-size: 13px; color: var(--mute); padding: 2px 0; }
+  .ej-steps .tick { color: var(--ok); font-size: 12px; }
+  .ej-steps li.n { color: var(--ink); } .ej-steps li.n .tick { color: var(--bad); }
+  .ej-steps .note { color: var(--faint); }
+  .strip { display: flex; gap: 8px; overflow-x: auto; padding-top: 4px; }
+  .strip img { height: 180px; border: 1px solid var(--line); border-radius: 7px; display: block; }
+  .pairs { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+  .pair { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--surface); }
+  .pair .pl { padding: 8px 11px; font: 500 11px var(--mono); color: var(--mute); border-bottom: 1px solid var(--line); }
   .cmp { position: relative; --x: 50%; touch-action: none; cursor: ew-resize; overflow: hidden; }
   .cmp img { display: block; width: 100%; user-select: none; -webkit-user-drag: none; pointer-events: none; }
   .cmp .after { position: absolute; inset: 0; clip-path: inset(0 0 0 var(--x)); }
-  .cmp .divider { position: absolute; top: 0; bottom: 0; left: var(--x); width: 1.5px; background: #fff; box-shadow: 0 0 0 0.5px rgba(0,0,0,0.4); }
-  .cmp .grip { position: absolute; top: 50%; left: var(--x); transform: translate(-50%,-50%); width: 28px; height: 28px; border-radius: 50%; background: var(--ink); color: var(--bg); display: grid; place-items: center; font: 700 10px var(--mono); letter-spacing: -0.05em; box-shadow: 0 1px 5px rgba(0,0,0,0.45); }
-  .cmp .tag { position: absolute; top: 8px; font: 700 9px var(--mono); letter-spacing: 0.14em; text-transform: uppercase; padding: 3px 7px; border-radius: 3px; background: rgba(10,12,16,0.7); color: #fff; }
-  .cmp .tag.b { left: 8px; } .cmp .tag.a { right: 8px; }
-
-  .journey { border: 1px solid var(--line); border-radius: 10px; background: var(--card); padding: 20px 22px; margin-bottom: 16px; }
-  .jhead { display: flex; align-items: center; gap: 12px; }
-  .jhead h3 { font: 700 15px var(--mono); letter-spacing: -0.01em; }
-  .jpromise { color: var(--mute); font-size: 13.5px; margin: 5px 0 14px; max-width: 72ch; }
-  .jbody { display: grid; grid-template-columns: minmax(300px, 440px) 1fr; gap: 30px; align-items: start; }
-  @media (max-width: 780px) { .jbody { grid-template-columns: 1fr; } }
-  .steps { list-style: none; }
-  .steps li { display: flex; align-items: baseline; gap: 12px; padding: 6px 0; font-size: 13.5px; }
-  .steps li + li { border-top: 1px dotted var(--dots); }
-  .steps .st { flex: none; width: 40px; font: 700 10px var(--mono); letter-spacing: 0.1em; color: var(--ok); }
-  .steps li.no .st { color: var(--bad); }
-  .steps .note { color: var(--mute); }
-  .strip { display: flex; gap: 12px; overflow-x: auto; padding: 2px 2px 6px; }
-  .strip a { flex: none; text-decoration: none; }
-  .strip img { height: 236px; display: block; border: 1px solid var(--line); border-radius: 8px; }
-  .strip .cap { display: block; font: 500 10.5px var(--mono); letter-spacing: 0.04em; color: var(--mute); text-align: center; padding-top: 6px; }
-  footer { margin-top: 48px; color: var(--mute); font-size: 12.5px; max-width: 90ch; }
-  footer code { font: 600 11.5px var(--mono); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; background: var(--card); }
-  @media (max-width: 660px) {
-    .player { height: auto; }
-    .stage { flex-direction: column; }
-    .devcol { height: auto; }
-    .bezel { height: auto; }
-    .screen { height: auto; width: 100%; }
-    .screen video { width: 100%; height: auto; }
-  }
+  .cmp .dv { position: absolute; top: 0; bottom: 0; left: var(--x); width: 1px; background: #fff; box-shadow: 0 0 0 0.5px rgba(0,0,0,0.35); }
+  .cmp .tag { position: absolute; top: 7px; font: 600 9px var(--mono); letter-spacing: 0.1em; text-transform: uppercase; padding: 2px 6px; border-radius: 3px; background: rgba(12,13,14,0.66); color: #fff; }
+  .cmp .tag.b { left: 7px; } .cmp .tag.a { right: 7px; }
+  .ev-h { font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint); }
+  footer { margin-top: 30px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--faint); font-size: 12px; }
+  footer code { font: 500 11px var(--mono); color: var(--mute); }
+  @media (max-width: 560px) { .tc { display: none; } .frame { width: 100%; } }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <header class="mast">
-    <div class="eyebrow">Proof pack</div>
+  <header>
     <h1>${esc(title)}</h1>
-    <p class="meta"><b>${pass}/${pass + fail}</b> assertions · <b>${journeys.length}</b> journeys${pairs.length ? ` · <b>${pairs.length}</b> before/after pairs` : ''} · <code>${esc(base)}</code> · ${generated}</p>
-    <span class="stamp ${proven ? 'ok' : 'bad'}">${proven ? 'Proven' : 'Not proven'}</span>
+    <span class="verdict ${proven ? 'ok' : 'bad'}"><span class="dot ${proven ? 'ok' : 'bad'}"></span>${proven ? `${pass}/${pass + fail} passed` : `${fail} failed`}</span>
+    <span class="grow"></span>
+    <button class="theme" id="theme" title="light / dark" aria-label="toggle theme">◑</button>
   </header>
-${playerSection}
-  ${
-    failed.length
-      ? `<div class="failbox"><strong>What failed</strong><ul>${failed
-          .map(r => `<li>${esc(r.journey)} :: ${esc(r.step)}${r.note ? ` — <span class="note">${esc(r.note)}</span>` : ''}</li>`)
-          .join('')}</ul></div>`
-      : ''
-  }
-
-  <h2 id="tldr">TL;DR</h2>
-  <div class="tldr">
-    ${journeys
-      .map(
-        j =>
-          `<a href="#${esc(j.name)}"><span class="name">${esc(j.name)}</span><span class="promise">${esc(j.promise)}</span>${badge(j)}</a>`
-      )
-      .join('\n    ')}
-  </div>
 ${
-  pairs.length
-    ? `
-  <h2>Before → after<span class="h2note">drag the handle — left is the merge-base, right is this branch</span></h2>
-  <div class="pairs">
-    ${pairs
-      .map(
-        p => `<div class="pair">
-      <div class="plabel"><span class="pj">${esc(p.journey)}</span><span class="ps">${esc(p.step)}</span></div>
-      <div class="cmp">
-        <img src="${src(p.before)}" alt="before — ${esc(p.step)}" loading="lazy">
-        <div class="after"><img src="${src(p.after)}" alt="after — ${esc(p.step)}" loading="lazy"></div>
-        <span class="tag b">before</span><span class="tag a">after</span>
-        <div class="divider"></div><div class="grip">◂▸</div>
+  hasPlayer
+    ? `  <section class="player">
+    <div class="viewport" id="vp">
+      <div class="frame" id="frame">
+        <video id="vid" playsinline muted preload="auto"></video>
+        <div class="ov" id="ov">
+          <div class="reticle" id="reticle"><span class="h"></span><span class="v"></span><span class="p"></span><span class="m"></span></div>
+          <div class="mark" id="mark" hidden></div>
+        </div>
       </div>
-    </div>`
-      )
-      .join('\n    ')}
-  </div>`
-    : ''
-}
-
-  <h2>Journeys<span class="h2note">every line is an assertion that ran against the live app</span></h2>
-  ${journeys
-    .map(
-      j => `<section class="journey" id="${esc(j.name)}">
-    <div class="jhead"><h3>${esc(j.name)}</h3>${badge(j)}</div>
-    ${j.promise ? `<p class="jpromise">${esc(j.promise)}</p>` : ''}
-    <div class="jbody">
-      <ul class="steps">
-        ${j.steps
-          .map(
-            r =>
-              `<li class="${r.status === 'PASS' ? 'yes' : 'no'}"><span class="st">${r.status}</span><span>${esc(r.step)}${r.note ? ` <span class="note">— ${esc(r.note)}</span>` : ''}</span></li>`
-          )
-          .join('\n        ')}
-      </ul>
-      ${j.shots.length ? `<div class="strip">${j.shots.map(s => thumb(s, stepLabel(path.basename(s)))).join('')}</div>` : ''}
+    </div>
+    <div class="bar">
+      <button class="ico play" id="play" title="play / pause (space)">▶</button>
+      <span class="tc" id="tc">0.0 / 0.0</span>
+      <div class="scrubwrap"><div class="track"></div><div class="fill" id="fill"></div><div id="ticks"></div><input id="scrub" type="range" min="0" max="1000" value="0" aria-label="scrub"></div>
+      <button class="ico txt" id="speed" title="speed">2×</button>
+      <span class="sep"></span>
+      <button class="ico" id="ovbtn" title="reticle overlay">◎</button>
+      <button class="ico" id="mkbtn" title="step markers">✓</button>
+      <button class="ico" id="fs" title="fullscreen (f)">⛶</button>
+    </div>
+    <div class="cap">
+      <div class="jtabs" id="jtabs"></div>
+      <p class="promise" id="promise"></p>
     </div>
   </section>`
-    )
-    .join('\n  ')}
-${
-  viewports.length
-    ? `
-  <h2>Viewport sweep</h2>
-  <div class="strip">
-    ${viewports.map(v => thumb(v, path.basename(v, '.png'))).join('\n    ')}
-  </div>`
-    : ''
+    : `  <p class="subtle">No recording was captured for this run. The evidence is below.</p>`
 }
 
-  <footer>Generated by the /proof journey runner — regenerate with <code>node run.mjs</code>${pairs.length ? ', baseline with <code>node run.mjs --baseline</code>' : ''}. ${hasPlayer ? 'The recordings up top are real screen captures of the run — the reticle was injected into the live page at the recorded input coordinates. ' : ''}Every ✅/❌ is an assertion that ran against the live app; screenshots are the states those assertions saw.</footer>
+  <details class="evidence"${hasPlayer ? '' : ' open'}>
+    <summary><b>Evidence</b> ${esc(evMeta)}</summary>
+    <div class="ev-body">
+      ${failed.length ? `<div class="failbox"><b>What failed</b><ul>${failed.map(r => `<li>${esc(r.journey)} :: ${esc(r.step)}${r.note ? ` — ${esc(r.note)}` : ''}</li>`).join('')}</ul></div>` : ''}
+      ${journeys.map(evJourney).join('\n      ')}
+      ${pairs.length ? `<div><div class="ev-h">Before → after · drag the handle</div><div class="pairs" style="margin-top:10px">${pairs.map(p => `<div class="pair"><div class="pl">${esc(p.step)}</div><div class="cmp"><img src="${isrc(p.before)}" alt="before" loading="lazy"><div class="after"><img src="${isrc(p.after)}" alt="after" loading="lazy"></div><span class="tag b">before</span><span class="tag a">after</span><div class="dv"></div></div></div>`).join('')}</div></div>` : ''}
+      ${viewports.length ? `<div><div class="ev-h">Viewport sweep</div><div class="strip" style="margin-top:10px">${viewports.map(v => `<a href="${v}" target="_blank"><img src="${isrc(v)}" alt="${esc(path.basename(v, '.png'))}" loading="lazy"></a>`).join('')}</div></div>` : ''}
+    </div>
+  </details>
+
+  <footer>Generated by the /proof journey runner — regenerate with <code>node run.mjs</code>. Every ✓/✗ is an assertion that ran against the live app${hasPlayer ? '; the video is a real screen recording of the run, with the reticle drawn from the logged input coordinates' : ''}.</footer>
 </div>
 <script>
-document.querySelectorAll('.cmp').forEach(function (c) {
-  var set = function (x) {
-    var r = c.getBoundingClientRect();
-    c.style.setProperty('--x', Math.max(0, Math.min(100, ((x - r.left) / r.width) * 100)) + '%');
-  };
-  c.addEventListener('pointerdown', function (e) { c.setPointerCapture(e.pointerId); set(e.clientX); });
-  c.addEventListener('pointermove', function (e) { if (e.buttons) set(e.clientX); });
-});
-var DATA = ${data};
-if (DATA) {
-  var GLYPH = { tap: 'tap', fill: 'type', swipe: 'swipe' };
-  var jIdx = 0, speed = 2, loop = true;
+(function () {
+  var root = document.documentElement;
+  try { var t = localStorage.getItem('proof-theme'); if (t) root.setAttribute('data-theme', t); } catch (e) {}
+  document.getElementById('theme').addEventListener('click', function () {
+    var d = root.getAttribute('data-theme') === 'dark' ? '' : 'dark';
+    if (d) root.setAttribute('data-theme', d); else root.removeAttribute('data-theme');
+    try { localStorage.setItem('proof-theme', d); } catch (e) {}
+  });
+  document.querySelectorAll('.cmp').forEach(function (c) {
+    var set = function (x) { var r = c.getBoundingClientRect(); c.style.setProperty('--x', Math.max(0, Math.min(100, ((x - r.left) / r.width) * 100)) + '%'); };
+    c.addEventListener('pointerdown', function (e) { c.setPointerCapture(e.pointerId); set(e.clientX); });
+    c.addEventListener('pointermove', function (e) { if (e.buttons) set(e.clientX); });
+  });
+
+  var DATA = ${data};
+  if (!DATA) return;
+  var INPUT = { tap: 1, fill: 1, swipe: 1 };
+  var SPEEDS = [1, 2, 4, 8];
+  var jIdx = 0, speed = 2, reticleOn = true, markOn = true, scrubbing = false;
   var $ = function (id) { return document.getElementById(id); };
-  var vid = $('vid');
+  var vid = $('vid'), vw = DATA.viewport;
   var J = function () { return DATA.journeys[jIdx]; };
   var evDur = function () { var e = J().events; return e.length ? e[e.length - 1].t + 900 : 1000; };
-  var D = function () { return Math.max(vid.duration && isFinite(vid.duration) ? vid.duration * 1000 : 0, evDur()); };
-  var clockMs = function () { return vid.currentTime * 1000; };
-  var fmt = function (ms) { return (ms / 1000).toFixed(1) + 's'; };
+  var D = function () { var vd = vid.duration && isFinite(vid.duration) ? vid.duration * 1000 : 0; return vd || evDur(); };
+  var now = function () { return vid.currentTime * 1000; };
+  var fmt = function (ms) { return (ms / 1000).toFixed(1); };
   var escs = function (s) { var d = document.createElement('i'); d.textContent = s == null ? '' : String(s); return d.innerHTML; };
-  var buildJourneyTabs = function () {
-    $('jtabs').innerHTML = DATA.journeys.map(function (j, i) {
-      return '<button data-i="' + i + '" class="' + (i === jIdx ? 'on' : '') + '"><span class="jdot' + (j.fail ? ' bad' : '') + '"></span>' + escs(j.name) + '</button>';
-    }).join('');
-  };
-  var buildPanels = function () {
-    var j = J(), vw = DATA.viewport;
-    var inputs = j.events.filter(function (e) { return GLYPH[e.kind]; });
-    var asserts = j.events.filter(function (e) { return e.kind === 'assert'; });
-    $('p-summary').innerHTML =
-      '<p><span class="badge ' + (j.fail ? 'bad' : 'ok') + '">' + (j.fail ? '✗ ' : '✓ ') + j.pass + '/' + (j.pass + j.fail) + '</span></p>' +
-      (j.promise ? '<p class="promise">' + escs(j.promise) + '</p>' : '') +
-      '<div class="kv"><span>inputs</span><span>' + inputs.length + '</span>' +
-      '<span>duration</span><span>' + fmt(evDur()) + '</span>' +
-      '<span>viewport</span><span>' + vw.width + '×' + vw.height + '</span>' +
-      '<span>recording</span><span>real-time screen capture</span></div>';
-    $('p-steps').innerHTML = '<ul class="lsteps">' + asserts.map(function (e) {
-      return '<li data-t="' + e.t + '" class="' + (e.status === 'PASS' ? 'yes' : 'no') + '"><span class="st">' + (e.status === 'PASS' ? '✓' : '✗') + '</span><span>' + escs(e.label) + '</span><span class="t">' + fmt(e.t) + '</span></li>';
-    }).join('') + '</ul>';
-    $('p-network').innerHTML = j.net.length
-      ? '<table class="net">' + j.net.map(function (n) {
-          return '<tr><td class="t">' + fmt(n.t) + '</td><td>' + escs(n.method) + '</td><td class="u" title="' + escs(n.url) + '">' + escs(n.url) + '</td><td class="' + (n.status >= 400 ? 's4' : 's2') + '">' + n.status + '</td></tr>';
-        }).join('') + '</table>'
-      : '<p style="color:var(--mute);font-size:13px">No requests recorded.</p>';
-    $('p-perf').innerHTML = asserts.map(function (e) {
-      return '<div class="perfrow ' + (e.status === 'PASS' ? 'yes' : 'no') + '"><div>' + escs(e.label) + '<div class="bar"><i style="width:' + Math.max(2, (e.t / evDur()) * 100) + '%"></i></div></div><span class="ms">' + fmt(e.t) + '</span></div>';
-    }).join('');
-    $('ticks').innerHTML = j.events.map(function (e) {
-      var cls = e.kind === 'assert' ? (e.status === 'PASS' ? 'ok' : 'bad') : e.kind === 'shot' ? 'shotm' : GLYPH[e.kind] || e.kind === 'nav' ? '' : null;
-      if (cls === null) return '';
-      var tip = e.kind + (e.label ? ' · ' + e.label : '') + (GLYPH[e.kind] ? ' · ' + Math.round(e.x) + ',' + Math.round(e.y) : '');
-      return '<div class="tick ' + cls + '" style="left:' + (e.t / D()) * 100 + '%" title="' + escs(tip) + '"></div>';
-    }).join('');
-    Array.prototype.forEach.call(document.querySelectorAll('#p-steps li'), function (li) {
-      li.addEventListener('click', function () { vid.pause(); vid.currentTime = +li.dataset.t / 1000; });
-    });
-  };
-  var render = function () {
-    var c = clockMs();
-    var inputs = J().events.filter(function (e) { return GLYPH[e.kind]; });
+  var ease = function (t) { return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; };
+
+  function cursorAt(c) {
+    var ins = J().events.filter(function (e) { return INPUT[e.kind]; });
+    if (!ins.length) return null;
     var prev = null, next = null;
-    for (var i = 0; i < inputs.length; i++) { if (inputs[i].t <= c) prev = inputs[i]; else { next = inputs[i]; break; } }
-    var hud = $('hud'), cur = null, arrow = '';
-    if (next && c >= next.t - 450) { cur = next; arrow = '→ '; }
-    else if (prev && c - prev.t < 2600) cur = prev;
-    hud.hidden = !cur;
-    if (cur) hud.innerHTML = '<b>' + Math.round(cur.x) + '</b> · <b>' + Math.round(cur.y) + '</b> — ' + escs(arrow + GLYPH[cur.kind] + (cur.label ? ' ' + cur.label : ''));
-    var ctx = null;
-    J().events.forEach(function (e) {
-      if ((e.kind === 'nav' || e.kind === 'wait' || e.kind === 'shot') && e.t <= c && c - e.t < 2200) ctx = e;
-    });
-    $('chip').hidden = !ctx;
-    if (ctx) $('chip').textContent = (ctx.kind === 'nav' ? '⇥ ' : ctx.kind === 'shot' ? '◈ ' : '… ') + (ctx.label || '');
-    var lastAssert = null;
-    J().events.forEach(function (e) { if (e.kind === 'assert' && e.t <= c && c - e.t < 1300) lastAssert = e; });
-    $('toast').hidden = !lastAssert;
-    if (lastAssert) {
-      $('toast').className = 'toast' + (lastAssert.status === 'PASS' ? '' : ' bad');
-      $('toast').textContent = (lastAssert.status === 'PASS' ? '✓ ' : '✗ ') + lastAssert.label;
+    for (var i = 0; i < ins.length; i++) { if (ins[i].t <= c) prev = ins[i]; else { next = ins[i]; break; } }
+    if (!prev) return { x: ins[0].x, y: ins[0].y, rest: true, age: 1e9 };
+    if (prev.kind === 'swipe' && c < prev.t + 420) {
+      var ks = ease(Math.min(1, (c - prev.t) / 420));
+      return { x: prev.x + (prev.x2 - prev.x) * ks, y: prev.y + (prev.y2 - prev.y) * ks, rest: false, age: 0 };
     }
-    var frac = Math.min(1, c / D()) * 100;
-    $('prog').style.width = frac + '%';
-    $('playhead').style.left = frac + '%';
-    $('scrub').value = Math.round((c / D()) * 1000);
-    $('clock').textContent = fmt(Math.min(c, D())) + ' / ' + fmt(D());
-    var active = null;
-    Array.prototype.forEach.call(document.querySelectorAll('#p-steps li'), function (li) {
-      var done = +li.dataset.t <= c;
-      li.classList.toggle('done', done);
-      li.classList.remove('active');
-      if (done) active = li;
-    });
-    if (active) active.classList.add('active');
+    var from = prev.kind === 'swipe' ? { x: prev.x2, y: prev.y2 } : { x: prev.x, y: prev.y };
+    var age = c - prev.t;
+    if (!next) return { x: from.x, y: from.y, rest: true, age: age };
+    var travel = Math.min(650, (next.t - prev.t) * 0.5), start = next.t - travel;
+    if (c < start || travel <= 0) return { x: from.x, y: from.y, rest: true, age: age };
+    var k = ease((c - start) / travel);
+    return { x: from.x + (next.x - from.x) * k, y: from.y + (next.y - from.y) * k, rest: false, age: 0 };
+  }
+
+  function paintOverlay(c) {
+    var R = $('reticle');
+    if (!reticleOn) { R.style.display = 'none'; } else {
+      var cur = cursorAt(c);
+      if (!cur) { R.style.display = 'none'; } else {
+        R.style.display = '';
+        var X = (cur.x / vw.width) * 100, Y = (cur.y / vw.height) * 100;
+        R.querySelector('.h').style.top = Y + '%';
+        R.querySelector('.v').style.left = X + '%';
+        var m = R.querySelector('.m'); m.style.left = X + '%'; m.style.top = Y + '%';
+        var p = R.querySelector('.p');
+        if (cur.rest && cur.age < 420) {
+          var f = cur.age / 420;
+          p.style.left = X + '%'; p.style.top = Y + '%'; p.style.opacity = 1 - f;
+          p.style.transform = 'translate(-50%,-50%) scale(' + (1 + f * 1.7) + ')';
+        } else p.style.opacity = 0;
+      }
+    }
+    var la = null;
+    J().events.forEach(function (e) { if (e.kind === 'assert' && e.t <= c && c - e.t < 1100) la = e; });
+    var M = $('mark');
+    if (markOn && la) { M.hidden = false; M.className = 'mark' + (la.status === 'PASS' ? '' : ' bad'); M.textContent = la.status === 'PASS' ? '✓' : '✗'; }
+    else M.hidden = true;
+  }
+
+  function paint() {
+    var c = now();
+    paintOverlay(c);
+    var frac = Math.min(1, c / D());
+    $('fill').style.width = frac * 100 + '%';
+    if (!scrubbing) $('scrub').value = Math.round(frac * 1000);
+    $('tc').textContent = fmt(Math.min(c, D())) + ' / ' + fmt(D());
     $('play').textContent = vid.paused ? '▶' : '❚❚';
-    requestAnimationFrame(render);
-  };
-  var switchJourney = function (i) {
-    jIdx = i;
-    vid.pause();
-    vid.src = J().video;
-    vid.loop = loop;
-    vid.playbackRate = speed;
-    vid.load();
-    buildJourneyTabs();
-    buildPanels();
-    vid.addEventListener('loadedmetadata', function once() { vid.removeEventListener('loadedmetadata', once); buildPanels(); }, { once: true });
-  };
+    requestAnimationFrame(paint);
+  }
+
+  function buildTabs() {
+    var n = DATA.journeys.length;
+    $('jtabs').innerHTML = n > 1 ? DATA.journeys.map(function (j, i) { return '<button data-i="' + i + '" class="' + (i === jIdx ? 'on' : '') + '" title="' + escs(j.promise) + '">' + (i + 1) + '</button>'; }).join('') : '';
+    var j = J();
+    $('promise').innerHTML = (n > 1 ? '<b>Journey ' + (jIdx + 1) + '</b> — ' : '') + escs(j.promise || j.name) + '  ·  ' + j.pass + '/' + (j.pass + j.fail);
+    $('ticks').innerHTML = j.events.filter(function (e) { return e.kind === 'assert'; }).map(function (e) {
+      return '<span class="tk ' + (e.status === 'PASS' ? 'ok' : 'bad') + '" style="left:' + Math.min(100, (e.t / D()) * 100) + '%"></span>';
+    }).join('');
+  }
+  function switchJourney(i) {
+    jIdx = i; vid.pause(); vid.src = J().video; vid.playbackRate = speed; vid.load();
+    buildTabs();
+    vid.addEventListener('loadedmetadata', buildTabs, { once: true });
+  }
+
   $('jtabs').addEventListener('click', function (e) { var b = e.target.closest('button'); if (b) switchJourney(+b.dataset.i); });
-  $('ptabs').addEventListener('click', function (e) {
-    var b = e.target.closest('button'); if (!b) return;
-    Array.prototype.forEach.call(document.querySelectorAll('.ptabs button'), function (x) { x.classList.toggle('on', x === b); });
-    Array.prototype.forEach.call(document.querySelectorAll('.panel'), function (p) { p.classList.toggle('on', p.id === 'p-' + b.dataset.p); });
-  });
   $('play').addEventListener('click', function () { vid.paused ? vid.play() : vid.pause(); });
-  $('speed').addEventListener('click', function (e) {
-    var b = e.target.closest('button'); if (!b) return;
-    speed = +b.dataset.s;
-    vid.playbackRate = speed;
-    Array.prototype.forEach.call(document.querySelectorAll('.seg button'), function (x) { x.classList.toggle('on', x === b); });
+  $('speed').addEventListener('click', function () {
+    speed = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length]; vid.playbackRate = speed; this.textContent = speed + '×';
   });
-  $('loopb').addEventListener('click', function () { loop = !loop; vid.loop = loop; this.classList.toggle('on', loop); });
-  function toggleFs() { var el = document.querySelector('.screen'); if (document.fullscreenElement) document.exitFullscreen(); else if (el.requestFullscreen) el.requestFullscreen(); }
+  $('ovbtn').addEventListener('click', function () { reticleOn = !reticleOn; this.classList.toggle('off', !reticleOn); });
+  $('mkbtn').addEventListener('click', function () { markOn = !markOn; this.classList.toggle('off', !markOn); });
+  function toggleFs() { var el = $('vp'); if (document.fullscreenElement) document.exitFullscreen(); else if (el.requestFullscreen) el.requestFullscreen(); }
   $('fs').addEventListener('click', toggleFs);
-  $('scrub').addEventListener('input', function () { vid.pause(); vid.currentTime = ((+this.value / 1000) * D()) / 1000; });
+  var sc = $('scrub');
+  var seek = function () { scrubbing = true; vid.pause(); vid.currentTime = (+sc.value / 1000) * D() / 1000; paintOverlay(now()); };
+  sc.addEventListener('input', seek);
+  sc.addEventListener('change', function () { scrubbing = false; });
+  sc.addEventListener('pointerup', function () { scrubbing = false; });
   document.addEventListener('keydown', function (e) {
-    if (e.target.closest('input')) return;
+    if (e.target.closest('input, [contenteditable]')) return;
     if (e.key === ' ') { e.preventDefault(); vid.paused ? vid.play() : vid.pause(); }
-    if (e.key === 'f' || e.key === 'F') { toggleFs(); }
-    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
-      var c = clockMs(), evs = J().events.map(function (x) { return x.t; });
-      var t = e.key === 'ArrowRight'
-        ? (evs.filter(function (x) { return x > c + 50; })[0] ?? D())
-        : (evs.filter(function (x) { return x < c - 50; }).pop() ?? 0);
-      vid.pause();
-      vid.currentTime = t / 1000;
+    else if (e.key === 'f' || e.key === 'F') toggleFs();
+    else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+      var c = now(), ev = J().events.map(function (x) { return x.t; });
+      var t = e.key === 'ArrowRight' ? (ev.filter(function (x) { return x > c + 50; })[0] ?? D()) : (ev.filter(function (x) { return x < c - 50; }).pop() ?? 0);
+      vid.pause(); vid.currentTime = t / 1000; paintOverlay(t);
     }
   });
-  buildJourneyTabs();
   switchJourney(0);
-  requestAnimationFrame(render);
-}
+  requestAnimationFrame(paint);
+})();
 </script>
 </body>
 </html>
 `;
   fs.writeFileSync(path.join(folder, 'REPORT.html'), html);
-
   return { pass, fail, proven, pairs: pairs.length, recorded: jr.length };
 }
 
-// replay.gif — the shareable artifact (GitHub animates it inside REPORT.md and
-// PR descriptions), rendered straight from the happy-path screen recording.
+// replay.gif — the shareable artifact GitHub animates in REPORT.md / PRs.
 async function tryGif({ folder, webm, ffmpeg }) {
   if (!ffmpeg) {
     console.log('(replay) ffmpeg not found — skipping replay.gif');
@@ -667,7 +519,7 @@ async function tryGif({ folder, webm, ffmpeg }) {
   }
   try {
     execSync(
-      `ffmpeg -y -i "${webm}" -vf "fps=10,scale=320:-2:flags=lanczos,split[a][b];[a]palettegen[p];[b][p]paletteuse" "${path.join(folder, 'replay.gif')}"`,
+      `ffmpeg -y -i "${webm}" -vf "fps=10,scale=480:-2:flags=lanczos,split[a][b];[a]palettegen[p];[b][p]paletteuse" "${path.join(folder, 'replay.gif')}"`,
       { stdio: 'pipe' }
     );
     console.log('(replay) replay.gif written');
