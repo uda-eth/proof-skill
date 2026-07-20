@@ -136,12 +136,31 @@ export async function writeReports({ folder, base, title = 'user journeys', resu
           }
         }
         if (!vsrc) vsrc = 'data:video/webm;base64,' + fs.readFileSync(webm).toString('base64');
+        // poster = a real still frame (~35% in) as a data: IMAGE. The artifact
+        // sandbox renders data: images but not data: video, so this is what a
+        // shared artifact shows instead of a blank pane; on disk the video plays.
+        let poster = null;
+        if (ffmpeg) {
+          const ptmp = webm + '.poster.jpg';
+          try {
+            const dur = parseFloat(
+              execSync(`ffprobe -v error -show_entries format=duration -of default=nk=1:nw=1 "${webm}"`, { stdio: 'pipe' }).toString().trim()
+            ) || 0;
+            const at = Math.max(0.1, dur * 0.35).toFixed(2);
+            execSync(`ffmpeg -y -ss ${at} -i "${webm}" -frames:v 1 -vf scale=640:-2 -q:v 4 "${ptmp}"`, { stdio: 'pipe' });
+            poster = 'data:image/jpeg;base64,' + fs.readFileSync(ptmp).toString('base64');
+            fs.rmSync(ptmp, { force: true });
+          } catch {
+            poster = null;
+          }
+        }
         return {
           name: j.name,
           promise: j.promise,
           pass: j.pass,
           fail: j.fail,
           video: vsrc,
+          poster: poster,
           events: r.events,
           net: (r.net || []).filter(n => n.type !== 'image' || n.status >= 400),
         };
@@ -471,7 +490,7 @@ ${
     }).join('');
   }
   function switchJourney(i) {
-    jIdx = i; vid.pause(); vid.src = J().video; vid.playbackRate = speed; vid.load();
+    jIdx = i; vid.pause(); if (J().poster) vid.poster = J().poster; else vid.removeAttribute('poster'); vid.src = J().video; vid.playbackRate = speed; vid.load();
     buildTabs();
     vid.addEventListener('loadedmetadata', buildTabs, { once: true });
   }
