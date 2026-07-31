@@ -111,63 +111,73 @@ export async function writeReports({ folder, base, title = 'user journeys', resu
   } catch {
     ffmpeg = false;
   }
+  // A journey's recording is a LIST of tracks — the session plus any popup or
+  // second session it opened. Older packs carry a single `video`; normalise them
+  // to a one-track list so both shapes render identically.
+  const tracksOf = r =>
+    (r.tracks && r.tracks.length ? r.tracks : r.video ? [{ id: 0, label: '', video: r.video }] : []).filter(
+      t => t.video && fs.existsSync(path.join(folder, t.video))
+    );
+  const embedTrack = (t, folder) => {
+    const webm = path.join(folder, t.video);
+    let vsrc = null;
+    if (ffmpeg) {
+      const tmp = webm + '.tmp.mp4';
+      try {
+        execSync(
+          `ffmpeg -y -i "${webm}" -c:v libx264 -pix_fmt yuv420p -movflags +faststart -crf 28 -an "${tmp}"`,
+          { stdio: 'pipe' }
+        );
+        vsrc = 'data:video/mp4;base64,' + fs.readFileSync(tmp).toString('base64');
+        fs.rmSync(tmp, { force: true });
+      } catch {
+        vsrc = null;
+      }
+    }
+    if (!vsrc) vsrc = 'data:video/webm;base64,' + fs.readFileSync(webm).toString('base64');
+    // poster = a real still frame (~35% in) as a data: IMAGE. The artifact
+    // sandbox renders data: images but not data: video, so this is what a
+    // shared artifact shows instead of a blank pane; on disk the video plays.
+    let poster = null;
+    if (ffmpeg) {
+      const ptmp = webm + '.poster.jpg';
+      try {
+        const dur =
+          parseFloat(
+            execSync(`ffprobe -v error -show_entries format=duration -of default=nk=1:nw=1 "${webm}"`, {
+              stdio: 'pipe',
+            })
+              .toString()
+              .trim()
+          ) || 0;
+        const at = Math.max(0.1, dur * 0.35).toFixed(2);
+        execSync(`ffmpeg -y -ss ${at} -i "${webm}" -frames:v 1 -vf scale=640:-2 -q:v 4 "${ptmp}"`, { stdio: 'pipe' });
+        poster = 'data:image/jpeg;base64,' + fs.readFileSync(ptmp).toString('base64');
+        fs.rmSync(ptmp, { force: true });
+      } catch {
+        poster = null;
+      }
+    }
+    return { id: t.id, label: t.label || '', video: vsrc, poster };
+  };
+
   const replayPath = path.join(folder, 'replay.json');
   let replay = null;
   let jr = [];
   if (fs.existsSync(replayPath)) {
     replay = JSON.parse(fs.readFileSync(replayPath, 'utf8'));
     jr = journeys
-      .filter(j => {
-        const r = replay.journeys[j.name];
-        return r?.video && fs.existsSync(path.join(folder, r.video));
-      })
-      .map(j => {
-        const r = replay.journeys[j.name];
-        const webm = path.join(folder, r.video);
-        let vsrc = null;
-        if (ffmpeg) {
-          const tmp = webm + '.tmp.mp4';
-          try {
-            execSync(
-              `ffmpeg -y -i "${webm}" -c:v libx264 -pix_fmt yuv420p -movflags +faststart -crf 28 -an "${tmp}"`,
-              { stdio: 'pipe' }
-            );
-            vsrc = 'data:video/mp4;base64,' + fs.readFileSync(tmp).toString('base64');
-            fs.rmSync(tmp, { force: true });
-          } catch {
-            vsrc = null;
-          }
-        }
-        if (!vsrc) vsrc = 'data:video/webm;base64,' + fs.readFileSync(webm).toString('base64');
-        // poster = a real still frame (~35% in) as a data: IMAGE. The artifact
-        // sandbox renders data: images but not data: video, so this is what a
-        // shared artifact shows instead of a blank pane; on disk the video plays.
-        let poster = null;
-        if (ffmpeg) {
-          const ptmp = webm + '.poster.jpg';
-          try {
-            const dur = parseFloat(
-              execSync(`ffprobe -v error -show_entries format=duration -of default=nk=1:nw=1 "${webm}"`, { stdio: 'pipe' }).toString().trim()
-            ) || 0;
-            const at = Math.max(0.1, dur * 0.35).toFixed(2);
-            execSync(`ffmpeg -y -ss ${at} -i "${webm}" -frames:v 1 -vf scale=640:-2 -q:v 4 "${ptmp}"`, { stdio: 'pipe' });
-            poster = 'data:image/jpeg;base64,' + fs.readFileSync(ptmp).toString('base64');
-            fs.rmSync(ptmp, { force: true });
-          } catch {
-            poster = null;
-          }
-        }
-        return {
-          name: j.name,
-          promise: j.promise,
-          pass: j.pass,
-          fail: j.fail,
-          video: vsrc,
-          poster: poster,
-          events: r.events,
-          net: (r.net || []).filter(n => n.type !== 'image' || n.status >= 400),
-        };
-      });
+      .map(j => ({ j, tracks: tracksOf(replay.journeys[j.name] || {}) }))
+      .filter(x => x.tracks.length)
+      .map(({ j, tracks }) => ({
+        name: j.name,
+        promise: j.promise,
+        pass: j.pass,
+        fail: j.fail,
+        tracks: tracks.map(t => embedTrack(t, folder)),
+        events: replay.journeys[j.name].events,
+        net: (replay.journeys[j.name].net || []).filter(n => n.type !== 'image' || n.status >= 400),
+      }));
   }
   const hasPlayer = jr.length > 0;
 
@@ -175,7 +185,7 @@ export async function writeReports({ folder, base, title = 'user journeys', resu
   let md = `# Proof — ${title}\n\n`;
   md += `## ${proven ? '✅ PROVEN' : '❌ NOT PROVEN'} — ${pass}/${pass + fail} assertions across ${journeys.length} journeys\n\n`;
   md += `Against \`${base}\` · ${generated} · [interactive proof — watch the run](REPORT.html)\n\n`;
-  if (hasPlayer) await tryGif({ folder, webm: path.join(folder, replay.journeys[jr[0].name].video), ffmpeg });
+  if (hasPlayer) await tryGif({ folder, webm: path.join(folder, tracksOf(replay.journeys[jr[0].name])[0].video), ffmpeg });
   if (fs.existsSync(path.join(folder, 'replay.gif'))) md += `![journey replay](replay.gif)\n\n`;
   if (failed.length) {
     md += `**Failed steps:**\n\n`;
@@ -337,6 +347,10 @@ export async function writeReports({ folder, base, title = 'user journeys', resu
   .jtabs button { width: 26px; height: 26px; border-radius: 7px; font: 600 12px var(--mono); color: var(--mute); border: 1px solid transparent; }
   .jtabs button:hover { background: var(--field); }
   .jtabs button.on { color: var(--ink); border-color: var(--line2); background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+  .ttabs { display: flex; align-items: center; gap: 6px; }
+  .ttabs .tlabel { font: 600 9.5px var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint); margin-right: 2px; }
+  .ttabs button { font: 500 11.5px var(--sans); color: var(--mute); border: 1px solid var(--line2); border-radius: 6px; padding: 2px 8px; }
+  .ttabs button.on { color: var(--ink); background: var(--field); border-color: var(--line2); }
   .promise { font-size: 13.5px; color: var(--mute); }
   .promise b { color: var(--ink); font-weight: 600; }
 
@@ -419,6 +433,7 @@ ${
     </div>
     <div class="cap">
       <div class="jtabs" id="jtabs"></div>
+      <div class="ttabs" id="ttabs"></div>
       <p class="promise" id="promise"></p>
     </div>
   </section>`
@@ -458,7 +473,10 @@ ${
   var SPEEDS = [1, 1.5, 2, 4];
   // Only draw the cursor for CLEAN recordings (DATA.overlay). Older packs baked
   // an overlay into the video — drawing another would double it.
-  var jIdx = 0, speed = 1, cursorOn = !!DATA.overlay, scrubbing = false;
+  var jIdx = 0, tIdx = 0, speed = 1, cursorOn = !!DATA.overlay, scrubbing = false;
+  var TR = function () { return J().tracks[tIdx] || J().tracks[0]; };
+  // events with no "tr" happened on the first surface
+  var onTrack = function (e) { return (e.tr || 0) === tIdx; };
   var PRESS_MS = (DATA.pace && DATA.pace.press) || 90;
   if (!DATA.overlay) { var _ob = document.getElementById('ovbtn'); if (_ob) _ob.style.display = 'none'; }
   var $ = function (id) { return document.getElementById(id); };
@@ -477,11 +495,12 @@ ${
   // a straight line the pointer never took. In packs recorded before paths
   // existed there IS no motion between clicks, so the cursor holds at the last
   // click and jumps to the next — which is what actually happened.
-  function track() {
+  function pointerPath() {
     var j = J();
-    if (j._track) return j._track;
+    j._path = j._path || {};
+    if (j._path[tIdx]) return j._path[tIdx];
     var s = [];
-    j.events.forEach(function (e) {
+    j.events.filter(onTrack).forEach(function (e) {
       if (e.path && e.path.length) e.path.forEach(function (p) { s.push({ t: p[0], x: p[1], y: p[2] }); });
       if (INPUT[e.kind]) {
         s.push({ t: e.t, x: e.x, y: e.y });
@@ -489,11 +508,11 @@ ${
       }
     });
     s.sort(function (a, b) { return a.t - b.t; });
-    j._track = s;
+    j._path[tIdx] = s;
     return s;
   }
   function cursorAt(c) {
-    var s = track();
+    var s = pointerPath();
     if (!s.length) return null;
     if (c <= s[0].t) return { x: s[0].x, y: s[0].y };
     var i = 0;
@@ -511,7 +530,7 @@ ${
   // Which glyph the real cursor was showing: a hand while it rests on something
   // clickable, an arrow otherwise. "cur" is the element's computed CSS cursor,
   // captured during the run — not a guess.
-  function inputs() { return J().events.filter(function (e) { return INPUT[e.kind]; }); }
+  function inputs() { return J().events.filter(function (e) { return INPUT[e.kind] && onTrack(e); }); }
   function glyphAt(c) {
     var ins = inputs();
     for (var i = 0; i < ins.length; i++) {
@@ -553,18 +572,36 @@ ${
     $('jtabs').innerHTML = n > 1 ? DATA.journeys.map(function (j, i) { return '<button data-i="' + i + '" class="' + (i === jIdx ? 'on' : '') + '" title="' + escs(j.promise) + '">' + (i + 1) + '</button>'; }).join('') : '';
     var j = J();
     $('promise').innerHTML = (n > 1 ? '<b>Journey ' + (jIdx + 1) + '</b> — ' : '') + escs(j.promise || j.name) + '  ·  ' + j.pass + '/' + (j.pass + j.fail);
+    var tr = j.tracks || [];
+    $('ttabs').innerHTML = tr.length > 1
+      ? '<span class="tlabel">surface</span>' + tr.map(function (t, k) {
+          return '<button data-k="' + k + '" class="' + (k === tIdx ? 'on' : '') + '">' + escs(t.label || 'track ' + (k + 1)) + '</button>';
+        }).join('')
+      : '';
     $('ticks').innerHTML = j.events.filter(function (e) { return e.kind === 'assert' || e.kind === 'manual'; }).map(function (e) {
       var cls = e.kind === 'manual' ? 'man' : (e.status === 'PASS' ? 'ok' : 'bad');
       return '<span class="tk ' + cls + '" style="left:' + Math.min(100, (e.t / D()) * 100) + '%"></span>';
     }).join('');
   }
-  function switchJourney(i) {
-    jIdx = i; vid.pause(); if (J().poster) vid.poster = J().poster; else vid.removeAttribute('poster'); vid.src = J().video; vid.playbackRate = speed; vid.load();
+  // A journey can have several surfaces — the session, a popup it opened, a
+  // second user. Each is its own recording; switching swaps the video and the
+  // cursor track together.
+  function loadTrack() {
+    var t = TR();
+    vid.pause();
+    if (t.poster) vid.poster = t.poster; else vid.removeAttribute('poster');
+    vid.src = t.video;
+    vid.playbackRate = speed;
+    vid.load();
     buildTabs();
     vid.addEventListener('loadedmetadata', buildTabs, { once: true });
   }
+  function switchTrack(k) { tIdx = k; loadTrack(); }
+
+  function switchJourney(i) { jIdx = i; tIdx = 0; loadTrack(); }
 
   $('jtabs').addEventListener('click', function (e) { var b = e.target.closest('button'); if (b) switchJourney(+b.dataset.i); });
+  $('ttabs').addEventListener('click', function (e) { var b = e.target.closest('button'); if (b) switchTrack(+b.dataset.k); });
   $('play').addEventListener('click', function () { vid.paused ? vid.play() : vid.pause(); });
   $('speed').addEventListener('click', function () {
     speed = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length]; vid.playbackRate = speed; this.textContent = speed + '×';

@@ -40,12 +40,44 @@ let browser;
 // Off in --baseline or with --no-replay.
 const REPLAY = !BASELINE && !ARGS.includes('--no-replay');
 const replays = {};
-const rp = j => (replays[j] ??= { t0: Date.now(), events: [], net: [] });
-/** Log a replay event and RETURN it, so an assertion's proof box can be hung on
- *  the same object the player will read. */
-const ev = (j, e) => {
+const rp = j => (replays[j] ??= { t0: Date.now(), events: [], net: [], tracks: [] });
+// ── surfaces: every tab and every session is its own recorded TRACK ──────────
+// Playwright records EVERY page in a context. Banking only the page we opened
+// lost evidence silently: a popup's recording was orphaned under a random hash
+// and its errors were invisible, and two sessions in one journey both wrote
+// videos/<journey>.webm so the second clobbered the first.
+const TRACK = new WeakMap(); // page -> track
+const CLOCKED = new Set(); // journeys whose clock has already started
+function openTrack(j, ctx, page, label) {
+  const r = rp(j);
+  const t = { id: r.tracks.length, label, ctx, page, video: null };
+  r.tracks.push(t);
+  TRACK.set(page, t);
+  const tag = t.id ? ` · ${label}` : '';
+  page.on('pageerror', e => rec(j, `(pageerror${tag})`, false, e.message.slice(0, 140)));
+  if (REPLAY)
+    page.on('response', res => {
+      const q = res.request();
+      r.net.push({
+        t: Date.now() - r.t0,
+        ...(t.id ? { tr: t.id } : {}),
+        method: q.method(),
+        url: q.url().replace(BASE, '') || '/',
+        status: res.status(),
+        type: q.resourceType(),
+      });
+    });
+  return t;
+}
+const trackOf = page => (page && TRACK.get(page)) || null;
+
+/** Log a replay event and RETURN it. Pass the page so the event is attributed to
+ *  the surface it happened on. Track 0 stays untagged so single-surface packs
+ *  keep their lean shape. */
+const ev = (j, e, page) => {
   if (!REPLAY) return null;
-  const o = { t: Date.now() - rp(j).t0, ...e };
+  const t = trackOf(page);
+  const o = { t: Date.now() - rp(j).t0, ...(t && t.id ? { tr: t.id } : {}), ...e };
   rp(j).events.push(o);
   return o;
 };
@@ -149,7 +181,7 @@ const center = async el => {
 async function tap(page, j, selector, label = '') {
   const el = page.locator(selector).first();
   const { x, y, path, cur } = await reach(page, j, el);
-  ev(j, { kind: 'tap', x, y, label, path, cur });
+  ev(j, { kind: 'tap', x, y, label, path, cur }, page);
   await press(page);
   await page.waitForTimeout(PACE.after);
 }
@@ -167,7 +199,7 @@ async function tap(page, j, selector, label = '') {
 async function manual(page, j, label, { stage } = {}) {
   const tty = process.stdin.isTTY && process.stdout.isTTY && !process.env.PROOF_MANUAL;
   const mode = stage ? 'staged' : tty ? 'human' : 'skipped';
-  ev(j, { kind: 'manual', label, mode });
+  ev(j, { kind: 'manual', label, mode }, page);
   results.push({
     journey: j,
     step: label,
@@ -194,25 +226,49 @@ async function navTo(page, j, url, label = '') {
   // The pointer doesn't survive a document swap — put the hand back at rest.
   CURSOR.delete(page);
   // Label for a VIEWER ('reload the page'), never a raw URL or query string.
-  ev(j, { kind: 'nav', label: label || url.replace(BASE, '') || '/' });
+  ev(j, { kind: 'nav', label: label || url.replace(BASE, '') || '/' }, page);
   await page.waitForTimeout(PACE.nav);
 }
 async function pause(page, j, ms, label = '') {
   // Logged BEFORE the wait: the caption must say what's happening DURING the
   // pause, or the longest stretches of the run have nothing explaining them.
-  ev(j, { kind: 'wait', label: label || `${ms}ms` });
+  ev(j, { kind: 'wait', label: label || `${ms}ms` }, page);
   await page.waitForTimeout(ms);
 }
 /** Close a session and bank its screen recording as videos/<journey>.webm. */
+/** Bank the recording of EVERY page this session opened, not just the first. */
 async function closeSession(s, j) {
-  const video = REPLAY ? s.page.video() : null;
+  const mine = rp(j).tracks.filter(t => t.ctx === s.ctx);
+  const pending = REPLAY ? mine.map(t => ({ t, v: t.page.video() })) : [];
   await s.ctx.close();
-  if (video) {
+  for (const { t, v } of pending) {
+    if (!v) continue;
     fs.mkdirSync(path.join(FOLDER, 'videos'), { recursive: true });
-    const rel = `videos/${j}.webm`;
-    await video.saveAs(path.join(FOLDER, rel));
-    await video.delete().catch(() => {});
-    rp(j).video = rel;
+    const rel = `videos/${j}${t.id ? '-' + (t.id + 1) : ''}.webm`;
+    const clash = rp(j).tracks.find(o => o !== t && o.video === rel);
+    if (clash) {
+      rec(j, `(recording clash: ${rel})`, false, `tracks ${clash.id} and ${t.id} both claim it`);
+      continue;
+    }
+    await v.saveAs(path.join(FOLDER, rel));
+    await v.delete().catch(() => {});
+    t.video = rel;
+  }
+}
+
+/** Any .webm no track claimed is a surface the harness never adopted. */
+function sweepVideos() {
+  const dirPath = path.join(FOLDER, 'videos');
+  if (!fs.existsSync(dirPath)) return;
+  const claimed = new Set(
+    Object.values(replays).flatMap(r => r.tracks.map(t => t.video && path.basename(t.video)).filter(Boolean))
+  );
+  for (const f of fs.readdirSync(dirPath).filter(f => f.endsWith('.webm'))) {
+    if (claimed.has(f)) continue;
+    const abs = path.join(dirPath, f);
+    const size = fs.statSync(abs).size;
+    if (size === 0) fs.rmSync(abs, { force: true });
+    else console.log(`   ⚠ unclaimed recording videos/${f} (${size}B) — a surface the harness never adopted`);
   }
 }
 
@@ -239,7 +295,7 @@ async function shot(page, j, idx, name) {
     path: path.join(dir(j), String(idx).padStart(2, '0') + '-' + name + '.png'),
     fullPage: false,
   });
-  ev(j, { kind: 'shot', label: name });
+  ev(j, { kind: 'shot', label: name }, page);
 }
 
 async function freshSession(j) {
@@ -250,20 +306,21 @@ async function freshSession(j) {
   });
   // Baseline drives a build the feature doesn't exist on — fail fast, not 30s.
   if (BASELINE) ctx.setDefaultTimeout(3000);
+  // ONE clock per journey, started with the first recording — resetting it per
+  // session rebased the timeline mid-journey.
+  if (REPLAY && !CLOCKED.has(j)) {
+    rp(j).t0 = Date.now();
+    CLOCKED.add(j);
+  }
+  // Adopt every page this context opens, including ones the app opens itself.
+  let opened = 0;
+  ctx.on('page', p => {
+    if (TRACK.has(p)) return;
+    opened++;
+    openTrack(j, ctx, p, opened === 1 ? 'session' : `popup ${opened - 1}`);
+  });
   const page = await ctx.newPage();
-  if (REPLAY) rp(j).t0 = Date.now(); // align the event clock with the recording
-  page.on('pageerror', e => rec(j, '(pageerror)', false, e.message.slice(0, 140)));
-  if (REPLAY)
-    page.on('response', res => {
-      const q = res.request();
-      rp(j).net.push({
-        t: Date.now() - rp(j).t0,
-        method: q.method(),
-        url: q.url().replace(BASE, '') || '/',
-        status: res.status(),
-        type: q.resourceType(),
-      });
-    });
+  if (!TRACK.has(page)) openTrack(j, ctx, page, 'session');
   return { ctx, page };
 }
 const timeText = page => page.locator('[data-testid="time"]').innerText();
@@ -390,11 +447,19 @@ async function main() {
     );
     process.exit(0);
   }
-  if (REPLAY)
+  if (REPLAY) {
+    sweepVideos();
+    const journeys = Object.fromEntries(
+      Object.entries(replays).map(([name, r]) => [
+        name,
+        { ...r, tracks: r.tracks.map(({ id, label, video }) => ({ id, label, video })) },
+      ])
+    );
     fs.writeFileSync(
       path.join(FOLDER, 'replay.json'),
-      JSON.stringify({ device: DEVICE, viewport: VIEWPORT, overlay: true, pace: PACE, journeys: replays }, null, 1)
+      JSON.stringify({ device: DEVICE, viewport: VIEWPORT, overlay: true, pace: PACE, journeys }, null, 1)
     );
+  }
   const PROMISES = {
     '01-focus-cycle':
       'The core promise: a focus block runs, the wedge drains, and completion hands off to a break automatically',

@@ -55,12 +55,52 @@ let browser;
 // Off in --baseline runs, or with --no-replay when you only want the pass.
 const REPLAY = !BASELINE && !ARGS.includes('--no-replay');
 const replays = {};
-const rp = j => (replays[j] ??= { t0: Date.now(), events: [], net: [] });
-/** Log a replay event and RETURN it, so late-arriving detail (an assertion's
- *  proof box) can be attached to the same object the player will read. */
-const ev = (j, e) => {
+const rp = j => (replays[j] ??= { t0: Date.now(), events: [], net: [], tracks: [] });
+
+// ── surfaces: every tab and every session is its own recorded TRACK ──────────
+// Playwright records EVERY page in a context, not just the one you opened. The
+// harness used to bank only the page it knew about, which lost evidence two
+// ways, both silently:
+//   · a popup (target=_blank, window.open, an OAuth consent screen) had its
+//     recording written to videos/ under a random hash and never claimed, and
+//     its JS errors and network calls were invisible to the report;
+//   · two sessions in one journey — a collab/permissions/second-device test —
+//     both wrote videos/<journey>.webm, so the second clobbered the first.
+// Every page is now adopted as a track the moment it opens, recorded under its
+// own name, and its errors and traffic are attributed to it.
+const TRACK = new WeakMap(); // page -> track
+const CLOCKED = new Set(); // journeys whose clock has already started
+/** Register a page as a track on this journey and wire its diagnostics. */
+function openTrack(j, ctx, page, label) {
+  const r = rp(j);
+  const t = { id: r.tracks.length, label, ctx, page, video: null };
+  r.tracks.push(t);
+  TRACK.set(page, t);
+  const tag = t.id ? ` · ${label}` : '';
+  page.on('pageerror', e => rec(j, `(pageerror${tag})`, false, e.message.slice(0, 140)));
+  if (REPLAY)
+    page.on('response', res => {
+      const q = res.request();
+      r.net.push({
+        t: Date.now() - r.t0,
+        ...(t.id ? { tr: t.id } : {}),
+        method: q.method(),
+        url: q.url().replace(BASE, '') || '/',
+        status: res.status(),
+        type: q.resourceType(),
+      });
+    });
+  return t;
+}
+const trackOf = page => (page && TRACK.get(page)) || null;
+
+/** Log a replay event and RETURN it. Pass the page so the event is attributed
+ *  to the surface it happened on — the player needs it to put the cursor on the
+ *  right recording. Track 0 is left untagged so single-surface packs stay lean. */
+const ev = (j, e, page) => {
   if (!REPLAY) return null;
-  const o = { t: Date.now() - rp(j).t0, ...e };
+  const t = trackOf(page);
+  const o = { t: Date.now() - rp(j).t0, ...(t && t.id ? { tr: t.id } : {}), ...e };
   rp(j).events.push(o);
   return o;
 };
@@ -192,7 +232,7 @@ async function press(page) {
 async function tap(page, j, selector, label = '') {
   const el = page.locator(selector).first();
   const { x, y, path, cur } = await reach(page, j, el);
-  ev(j, { kind: 'tap', x, y, label, path, cur });
+  ev(j, { kind: 'tap', x, y, label, path, cur }, page);
   await press(page);
   await page.waitForTimeout(PACE.after);
 }
@@ -200,7 +240,7 @@ async function tap(page, j, selector, label = '') {
 async function fillIn(page, j, selector, text, label = '') {
   const el = page.locator(selector).first();
   const { x, y, path, cur } = await reach(page, j, el);
-  ev(j, { kind: 'fill', x, y, text, label, path, cur });
+  ev(j, { kind: 'fill', x, y, text, label, path, cur }, page);
   await press(page);
   await el.fill('');
   await page.waitForTimeout(PACE.press); // a beat after focusing, before typing
@@ -215,7 +255,7 @@ async function swipe(page, j, [x, y], [x2, y2], label = '') {
   await page.waitForTimeout(PACE.settle);
   // Logged at the START of the drag — the caption has to appear as the gesture
   // begins, not once it's already over.
-  const e = ev(j, { kind: 'swipe', x, y, x2, y2, label, path });
+  const e = ev(j, { kind: 'swipe', x, y, x2, y2, label, path }, page);
   await page.mouse.down();
   await page.waitForTimeout(PACE.press);
   // The drag itself is a hand movement too — bow and ease it like any other.
@@ -239,7 +279,7 @@ async function swipe(page, j, [x, y], [x2, y2], label = '') {
 async function manual(page, j, label, { stage } = {}) {
   const tty = process.stdin.isTTY && process.stdout.isTTY && !process.env.PROOF_MANUAL;
   const mode = stage ? 'staged' : tty ? 'human' : 'skipped';
-  ev(j, { kind: 'manual', label, mode });
+  ev(j, { kind: 'manual', label, mode }, page);
   results.push({
     journey: j,
     step: label,
@@ -270,7 +310,7 @@ async function navTo(page, j, url, label = '') {
   CURSOR.delete(page);
   // Label this for a VIEWER ('back to the dashboard'), never a raw URL or query
   // string — the path is in the network log for whoever needs it.
-  ev(j, { kind: 'nav', label: label || url.replace(BASE, '') || '/' });
+  ev(j, { kind: 'nav', label: label || url.replace(BASE, '') || '/' }, page);
   await page.waitForTimeout(PACE.nav);
 }
 /** Let the app run (timers, animations) — recorded in real time. */
@@ -278,19 +318,54 @@ async function pause(page, j, ms, label = '') {
   // Logged BEFORE the wait, not after: the caption has to say what's happening
   // DURING the pause ('block completes'), or the longest stretches of the run
   // are the ones with nothing on screen explaining them.
-  ev(j, { kind: 'wait', label: label || `${ms}ms` });
+  ev(j, { kind: 'wait', label: label || `${ms}ms` }, page);
   await page.waitForTimeout(ms);
 }
-/** Close a session and bank its screen recording as videos/<journey>.webm. */
+/**
+ * Close a session and bank the screen recording of EVERY page it opened — the
+ * session itself plus any popup it spawned. The first track of a journey keeps
+ * the familiar videos/<journey>.webm; extra surfaces get -2, -3, … so nothing
+ * can overwrite anything.
+ */
 async function closeSession(s, j) {
-  const video = REPLAY ? s.page.video() : null;
-  await s.ctx.close();
-  if (video) {
+  const mine = rp(j).tracks.filter(t => t.ctx === s.ctx);
+  const pending = REPLAY ? mine.map(t => ({ t, v: t.page.video() })) : [];
+  await s.ctx.close(); // finalises every video in the context
+  for (const { t, v } of pending) {
+    if (!v) continue;
     fs.mkdirSync(path.join(FOLDER, 'videos'), { recursive: true });
-    const rel = `videos/${j}.webm`;
-    await video.saveAs(path.join(FOLDER, rel));
-    await video.delete().catch(() => {});
-    rp(j).video = rel;
+    const rel = `videos/${j}${t.id ? '-' + (t.id + 1) : ''}.webm`;
+    const clash = rp(j).tracks.find(o => o !== t && o.video === rel);
+    if (clash) {
+      // Can't happen while ids are unique — but silent evidence loss is exactly
+      // the bug this replaced, so refuse to do it quietly ever again.
+      rec(j, `(recording clash: ${rel})`, false, `tracks ${clash.id} and ${t.id} both claim it`);
+      continue;
+    }
+    await v.saveAs(path.join(FOLDER, rel));
+    await v.delete().catch(() => {});
+    t.video = rel;
+  }
+}
+
+/**
+ * Any .webm left in videos/ that no track claimed is a recording the harness
+ * FAILED to attach — a surface it never noticed. Empty ones are Playwright
+ * stubs and get removed; anything with bytes in it is real evidence going
+ * unreferenced, so say so loudly rather than shipping a mystery file in the pack.
+ */
+function sweepVideos() {
+  const dirPath = path.join(FOLDER, 'videos');
+  if (!fs.existsSync(dirPath)) return;
+  const claimed = new Set(
+    Object.values(replays).flatMap(r => r.tracks.map(t => t.video && path.basename(t.video)).filter(Boolean))
+  );
+  for (const f of fs.readdirSync(dirPath).filter(f => f.endsWith('.webm'))) {
+    if (claimed.has(f)) continue;
+    const abs = path.join(dirPath, f);
+    const size = fs.statSync(abs).size;
+    if (size === 0) fs.rmSync(abs, { force: true });
+    else console.log(`   ⚠ unclaimed recording videos/${f} (${size}B) — a surface the harness never adopted`);
   }
 }
 
@@ -330,7 +405,7 @@ async function shot(page, j, idx, name) {
     path: path.join(dir(j), String(idx).padStart(2, '0') + '-' + name + '.png'),
     fullPage: false,
   });
-  ev(j, { kind: 'shot', label: name });
+  ev(j, { kind: 'shot', label: name }, page);
 }
 const txt = async (page, t) => (await page.getByText(t, { exact: false }).count()) > 0;
 const sel = async (page, s) => (await page.locator(s).count()) > 0;
@@ -372,20 +447,24 @@ async function freshUser(j, name) {
   await ctx.addInitScript(() => {
     localStorage.setItem('theme', 'light');
   });
+  // ONE clock per journey, started with the first recording. It used to be reset
+  // by every freshUser() call, which rebased the timeline mid-journey and left
+  // everything already logged pointing at the wrong moment.
+  if (REPLAY && !CLOCKED.has(j)) {
+    rp(j).t0 = Date.now();
+    CLOCKED.add(j);
+  }
+  // Adopt every page this context opens — including ones the app opens itself:
+  // target="_blank", window.open, an OAuth consent popup. Playwright is already
+  // recording them; this is what claims the recording and wires up diagnostics.
+  let opened = 0;
+  ctx.on('page', p => {
+    if (TRACK.has(p)) return;
+    opened++;
+    openTrack(j, ctx, p, opened === 1 ? name || 'session' : `popup ${opened - 1}`);
+  });
   const page = await ctx.newPage();
-  if (REPLAY) rp(j).t0 = Date.now(); // align the event clock with the recording
-  page.on('pageerror', e => rec(j, '(pageerror)', false, e.message.slice(0, 140)));
-  if (REPLAY)
-    page.on('response', res => {
-      const q = res.request();
-      rp(j).net.push({
-        t: Date.now() - rp(j).t0,
-        method: q.method(),
-        url: q.url().replace(BASE, '') || '/',
-        status: res.status(),
-        type: q.resourceType(),
-      });
-    });
+  if (!TRACK.has(page)) openTrack(j, ctx, page, name || 'session'); // belt and braces
 
   const email = `${USER_PREFIX}${j.replace(/[^a-z0-9]/g, '')}_${userSeq++}_${Date.now()}@t.com`;
   const r = await ctx.request.post(`${BASE}/api/auth/register`, {
@@ -481,15 +560,24 @@ async function main() {
     );
     process.exit(0);
   }
-  if (REPLAY)
+  if (REPLAY) {
+    sweepVideos();
+    // tracks hold live Playwright handles — serialise only what the report needs
+    const journeys = Object.fromEntries(
+      Object.entries(replays).map(([name, r]) => [
+        name,
+        { ...r, tracks: r.tracks.map(({ id, label, video }) => ({ id, label, video })) },
+      ])
+    );
     fs.writeFileSync(
       path.join(FOLDER, 'replay.json'),
       // overlay:true marks the video as CLEAN (cursor drawn by the player, not
       // baked in) so the player knows to draw one cursor, not double an old one.
       // pace travels with the pack so the player animates the cursor over the
       // same beats the run actually recorded, instead of guessing from gaps.
-      JSON.stringify({ device: DEVICE, viewport: VIEWPORT, overlay: true, pace: PACE, journeys: replays }, null, 1)
+      JSON.stringify({ device: DEVICE, viewport: VIEWPORT, overlay: true, pace: PACE, journeys }, null, 1)
     );
+  }
   const { pass, fail } = await writeReports({
     folder: FOLDER,
     base: BASE,

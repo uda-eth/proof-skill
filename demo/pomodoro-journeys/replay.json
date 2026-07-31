@@ -15,311 +15,311 @@
  },
  "journeys": {
   "01-focus-cycle": {
-   "t0": 1785494226853,
+   "t0": 1785510767282,
    "events": [
     {
-     "t": 845,
+     "t": 824,
      "kind": "nav",
      "label": "opens the app"
     },
     {
-     "t": 2247,
+     "t": 2234,
      "kind": "manual",
      "label": "grant notification permission",
      "mode": "staged"
     },
     {
-     "t": 4478,
+     "t": 4455,
      "kind": "assert",
      "status": "PASS",
      "label": "the timer is ready with a full 25-minute block"
     },
     {
-     "t": 4480,
+     "t": 4456,
      "kind": "assert",
      "status": "PASS",
      "label": "it starts in Focus mode, not on a break"
     },
     {
-     "t": 4481,
+     "t": 4457,
      "kind": "assert",
      "status": "PASS",
      "label": "the main button invites her to Start"
     },
     {
-     "t": 4977,
+     "t": 4942,
      "kind": "shot",
      "label": "idle-focus"
     },
     {
-     "t": 5484,
+     "t": 5450,
      "kind": "nav",
      "label": "reopens with shortened blocks"
     },
     {
-     "t": 8059,
+     "t": 8029,
      "kind": "tap",
      "x": 259.9375,
      "y": 515.09375,
      "label": "Maya starts the focus block",
      "path": [
       [
-       6949,
+       6920,
        195,
        793
       ],
       [
-       6965,
+       6935,
        195,
        792.9
       ],
       [
-       6982,
+       6952,
        194.8,
        792.5
       ],
       [
-       6999,
+       6968,
        194.6,
        791.9
       ],
       [
-       7016,
+       6985,
        194.3,
        790.9
       ],
       [
-       7033,
+       7002,
        193.9,
        789.6
       ],
       [
-       7049,
+       7019,
        193.3,
        787.7
       ],
       [
-       7066,
+       7035,
        192.6,
        785.3
       ],
       [
-       7083,
+       7052,
        191.8,
        782.3
       ],
       [
-       7100,
+       7068,
        190.8,
        778.8
       ],
       [
-       7116,
+       7085,
        189.9,
        774.7
       ],
       [
-       7133,
+       7102,
        188.9,
        769.9
       ],
       [
-       7150,
+       7118,
        188,
        764.5
       ],
       [
-       7166,
+       7135,
        187.1,
        758.4
       ],
       [
-       7183,
+       7153,
        186.4,
        751.7
       ],
       [
-       7200,
+       7168,
        185.9,
        744.4
       ],
       [
-       7217,
+       7185,
        185.6,
        736.6
       ],
       [
-       7233,
+       7202,
        185.6,
        728.1
       ],
       [
-       7250,
+       7218,
        186,
        719.2
       ],
       [
-       7266,
+       7235,
        186.7,
        709.7
       ],
       [
-       7283,
+       7252,
        187.8,
        699.9
       ],
       [
-       7301,
+       7268,
        189.2,
        689.8
       ],
       [
-       7316,
+       7285,
        191.1,
        679.4
       ],
       [
-       7333,
+       7302,
        193.4,
        668.8
       ],
       [
-       7350,
+       7318,
        196,
        658.1
       ],
       [
-       7366,
+       7335,
        199,
        647.4
       ],
       [
-       7382,
+       7352,
        202.2,
        636.7
       ],
       [
-       7400,
+       7368,
        205.7,
        626.3
       ],
       [
-       7416,
+       7385,
        209.4,
        616
       ],
       [
-       7433,
+       7402,
        213.3,
        606.1
       ],
       [
-       7450,
+       7418,
        217.2,
        596.5
       ],
       [
-       7467,
+       7435,
        221.2,
        587.3
       ],
       [
-       7483,
+       7452,
        225.1,
        578.7
       ],
       [
-       7501,
+       7468,
        229,
        570.6
       ],
       [
-       7516,
+       7485,
        232.8,
        563
       ],
       [
-       7532,
+       7503,
        236.4,
        556
       ],
       [
-       7549,
+       7517,
        239.7,
        549.6
       ],
       [
-       7566,
+       7535,
        242.9,
        543.9
       ],
       [
-       7586,
+       7554,
        245.8,
        538.7
       ],
       [
-       7599,
+       7568,
        248.4,
        534.1
       ],
       [
-       7616,
+       7585,
        250.8,
        530.1
       ],
       [
-       7633,
+       7602,
        252.8,
        526.6
       ],
       [
-       7649,
+       7618,
        254.6,
        523.7
       ],
       [
-       7665,
+       7635,
        256,
        521.3
       ],
       [
-       7682,
+       7652,
        257.2,
        519.4
       ],
       [
-       7699,
+       7668,
        258.2,
        517.9
       ],
       [
-       7715,
+       7685,
        258.9,
        516.7
       ],
       [
-       7732,
+       7702,
        259.4,
        516
       ],
       [
-       7749,
+       7718,
        259.7,
        515.5
       ],
       [
-       7765,
+       7735,
        259.9,
        515.2
       ],
       [
-       7782,
+       7752,
        259.9,
        515.1
       ],
       [
-       7799,
+       7768,
        259.9,
        515.1
       ]
@@ -327,382 +327,388 @@
      "cur": "pointer"
     },
     {
-     "t": 8869,
+     "t": 8833,
      "kind": "wait",
      "label": "the ring drains as the block runs"
     },
     {
-     "t": 10124,
+     "t": 10085,
      "kind": "assert",
      "status": "PASS",
      "label": "the block is running — the button now offers Pause"
     },
     {
-     "t": 10126,
+     "t": 10086,
      "kind": "assert",
      "status": "PASS",
      "label": "the countdown is ticking down"
     },
     {
-     "t": 10572,
+     "t": 10529,
      "kind": "shot",
      "label": "focus-running"
     },
     {
-     "t": 10572,
+     "t": 10529,
      "kind": "wait",
      "label": "waiting for the block to complete"
     },
     {
-     "t": 14077,
+     "t": 14033,
      "kind": "assert",
      "status": "PASS",
      "label": "when the block ends it moves her to a break by itself"
     },
     {
-     "t": 14079,
+     "t": 14035,
      "kind": "assert",
      "status": "PASS",
      "label": "the break starts fresh, at its full length"
     },
     {
-     "t": 14546,
+     "t": 14496,
      "kind": "shot",
      "label": "break-queued"
     }
    ],
    "net": [
     {
-     "t": 5,
+     "t": 54,
      "method": "GET",
      "url": "/",
      "status": 200,
      "type": "document"
     },
     {
-     "t": 124,
+     "t": 167,
      "method": "GET",
      "url": "https://fonts.googleapis.com/css2?family=Archivo:wght@500;800&family=Space+Grotesk:wght@400;600&display=swap",
      "status": 200,
      "type": "stylesheet"
     },
     {
-     "t": 341,
+     "t": 295,
      "method": "GET",
      "url": "https://fonts.gstatic.com/s/spacegrotesk/v22/V8mDoQDjQSkFtoMM3T6r8E7mPbF4C_k3HqU.woff2",
      "status": 200,
      "type": "font"
     },
     {
-     "t": 344,
+     "t": 322,
      "method": "GET",
      "url": "https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxKsv4Rn.woff2",
      "status": 200,
      "type": "font"
     },
     {
-     "t": 4979,
+     "t": 4945,
      "method": "GET",
      "url": "/?focus=4&break=3",
      "status": 200,
      "type": "document"
     },
     {
-     "t": 4981,
+     "t": 4947,
      "method": "GET",
      "url": "https://fonts.googleapis.com/css2?family=Archivo:wght@500;800&family=Space+Grotesk:wght@400;600&display=swap",
      "status": 200,
      "type": "stylesheet"
     },
     {
-     "t": 4982,
+     "t": 4949,
      "method": "GET",
      "url": "https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxKsv4Rn.woff2",
      "status": 200,
      "type": "font"
     },
     {
-     "t": 4982,
+     "t": 4949,
      "method": "GET",
      "url": "https://fonts.gstatic.com/s/spacegrotesk/v22/V8mDoQDjQSkFtoMM3T6r8E7mPbF4C_k3HqU.woff2",
      "status": 200,
      "type": "font"
     }
    ],
-   "video": "videos/01-focus-cycle.webm"
+   "tracks": [
+    {
+     "id": 0,
+     "label": "session",
+     "video": "videos/01-focus-cycle.webm"
+    }
+   ]
   },
   "02-pause-resume": {
-   "t0": 1785494241467,
+   "t0": 1785510781817,
    "events": [
     {
-     "t": 816,
+     "t": 1380,
      "kind": "nav",
      "label": "opens the app"
     },
     {
-     "t": 3396,
+     "t": 3994,
      "kind": "tap",
      "x": 259.9375,
      "y": 515.09375,
      "label": "Maya starts the block",
      "path": [
       [
-       2285,
+       2883,
        195,
        793
       ],
       [
-       2301,
+       2901,
        195,
        792.9
       ],
       [
-       2318,
+       2916,
        195,
        792.6
       ],
       [
-       2335,
+       2933,
        194.9,
        792
       ],
       [
-       2352,
+       2950,
        194.9,
        791.1
       ],
       [
-       2368,
+       2967,
        194.8,
        789.8
       ],
       [
-       2385,
+       2983,
        194.7,
        788
       ],
       [
-       2402,
+       3000,
        194.7,
        785.8
       ],
       [
-       2418,
+       3018,
        194.6,
        783
       ],
       [
-       2435,
+       3034,
        194.5,
        779.7
       ],
       [
-       2452,
+       3050,
        194.5,
        775.7
       ],
       [
-       2469,
+       3067,
        194.6,
        771.2
       ],
       [
-       2485,
+       3084,
        194.7,
        766
       ],
       [
-       2502,
+       3100,
        195,
        760.3
       ],
       [
-       2518,
+       3117,
        195.4,
        753.8
       ],
       [
-       2535,
+       3134,
        196,
        746.8
       ],
       [
-       2552,
+       3150,
        196.7,
        739.2
       ],
       [
-       2568,
+       3167,
        197.7,
        730.9
       ],
       [
-       2585,
+       3183,
        198.9,
        722.2
       ],
       [
-       2602,
+       3200,
        200.4,
        712.9
       ],
       [
-       2618,
+       3218,
        202,
        703.3
       ],
       [
-       2635,
+       3233,
        204,
        693.2
       ],
       [
-       2652,
+       3250,
        206.1,
        682.9
       ],
       [
-       2669,
+       3267,
        208.5,
        672.3
       ],
       [
-       2685,
+       3284,
        211,
        661.6
       ],
       [
-       2701,
+       3300,
        213.8,
        650.8
       ],
       [
-       2718,
+       3316,
        216.7,
        640.1
       ],
       [
-       2735,
+       3333,
        219.6,
        629.5
       ],
       [
-       2752,
+       3350,
        222.7,
        619.1
       ],
       [
-       2768,
+       3366,
        225.8,
        609
       ],
       [
-       2785,
+       3383,
        228.9,
        599.2
       ],
       [
-       2802,
+       3400,
        232,
        589.9
       ],
       [
-       2818,
+       3416,
        235,
        581
       ],
       [
-       2835,
+       3433,
        237.9,
        572.6
       ],
       [
-       2852,
+       3450,
        240.6,
        564.8
       ],
       [
-       2868,
+       3466,
        243.3,
        557.6
       ],
       [
-       2885,
+       3483,
        245.7,
        551
       ],
       [
-       2902,
+       3500,
        248,
        545
       ],
       [
-       2920,
+       3517,
        250,
        539.7
       ],
       [
-       2935,
+       3533,
        251.9,
        534.9
       ],
       [
-       2951,
+       3550,
        253.6,
        530.7
       ],
       [
-       2968,
+       3566,
        255,
        527.2
       ],
       [
-       2985,
+       3582,
        256.2,
        524.1
       ],
       [
-       3001,
+       3600,
        257.2,
        521.6
       ],
       [
-       3018,
+       3616,
        258.1,
        519.6
       ],
       [
-       3035,
+       3633,
        258.7,
        518
       ],
       [
-       3051,
+       3650,
        259.2,
        516.8
       ],
       [
-       3068,
+       3667,
        259.6,
        516
       ],
       [
-       3085,
+       3683,
        259.8,
        515.5
       ],
       [
-       3101,
+       3700,
        259.9,
        515.2
       ],
       [
-       3118,
+       3716,
        259.9,
        515.1
       ],
       [
-       3135,
+       3733,
        259.9,
        515.1
       ]
@@ -710,12 +716,12 @@
      "cur": "pointer"
     },
     {
-     "t": 4192,
+     "t": 4794,
      "kind": "wait",
      "label": "the block runs for a couple of seconds"
     },
     {
-     "t": 6447,
+     "t": 7062,
      "kind": "tap",
      "x": 259.9375,
      "y": 515.09375,
@@ -723,29 +729,29 @@
      "cur": "pointer"
     },
     {
-     "t": 7246,
+     "t": 7863,
      "kind": "wait",
      "label": "time passes while it sits paused"
     },
     {
-     "t": 8601,
+     "t": 9216,
      "kind": "assert",
      "status": "PASS",
      "label": "while paused, the clock does not lose a second"
     },
     {
-     "t": 8603,
+     "t": 9217,
      "kind": "assert",
      "status": "PASS",
      "label": "the button now offers to Resume"
     },
     {
-     "t": 9083,
+     "t": 9677,
      "kind": "shot",
      "label": "paused"
     },
     {
-     "t": 9379,
+     "t": 9978,
      "kind": "tap",
      "x": 259.9375,
      "y": 515.09375,
@@ -753,332 +759,338 @@
      "cur": "pointer"
     },
     {
-     "t": 10176,
+     "t": 10773,
      "kind": "wait",
      "label": "the countdown picks up again"
     },
     {
-     "t": 11431,
+     "t": 12031,
      "kind": "assert",
      "status": "PASS",
      "label": "it carries on from where it stopped, not from the top"
     },
     {
-     "t": 11882,
+     "t": 12586,
      "kind": "shot",
      "label": "resumed"
     }
    ],
    "net": [
     {
-     "t": 2,
+     "t": 34,
      "method": "GET",
      "url": "/?focus=60",
      "status": 200,
      "type": "document"
     },
     {
-     "t": 117,
+     "t": 397,
      "method": "GET",
      "url": "https://fonts.googleapis.com/css2?family=Archivo:wght@500;800&family=Space+Grotesk:wght@400;600&display=swap",
      "status": 200,
      "type": "stylesheet"
     },
     {
-     "t": 314,
+     "t": 755,
      "method": "GET",
      "url": "https://fonts.gstatic.com/s/spacegrotesk/v22/V8mDoQDjQSkFtoMM3T6r8E7mPbF4C_k3HqU.woff2",
      "status": 200,
      "type": "font"
     },
     {
-     "t": 315,
+     "t": 879,
      "method": "GET",
      "url": "https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxKsv4Rn.woff2",
      "status": 200,
      "type": "font"
     }
    ],
-   "video": "videos/02-pause-resume.webm"
+   "tracks": [
+    {
+     "id": 0,
+     "label": "session",
+     "video": "videos/02-pause-resume.webm"
+    }
+   ]
   },
   "03-slices-persist": {
-   "t0": 1785494253417,
+   "t0": 1785510794623,
    "events": [
     {
-     "t": 778,
+     "t": 905,
      "kind": "nav",
      "label": "opens the app"
     },
     {
-     "t": 2199,
+     "t": 2321,
      "kind": "assert",
      "status": "PASS",
      "label": "she has earned nothing yet, and the app says so"
     },
     {
-     "t": 3363,
+     "t": 3471,
      "kind": "tap",
      "x": 259.9375,
      "y": 515.09375,
      "label": "Maya starts a block",
      "path": [
       [
-       2252,
+       2360,
        195,
        793
       ],
       [
-       2268,
+       2377,
        195.1,
        792.9
       ],
       [
-       2285,
+       2394,
        195.3,
        792.6
       ],
       [
-       2301,
+       2410,
        195.7,
        792.2
       ],
       [
-       2318,
+       2427,
        196.4,
        791.4
       ],
       [
-       2335,
+       2444,
        197.3,
        790.3
       ],
       [
-       2352,
+       2461,
        198.5,
        788.9
       ],
       [
-       2367,
+       2476,
        200,
        787
       ],
       [
-       2385,
+       2494,
        201.8,
        784.7
       ],
       [
-       2402,
+       2510,
        203.9,
        781.9
       ],
       [
-       2418,
+       2527,
        206.3,
        778.5
       ],
       [
-       2435,
+       2545,
        209,
        774.6
       ],
       [
-       2452,
+       2560,
        211.9,
        770.1
       ],
       [
-       2468,
+       2577,
        215,
        764.9
       ],
       [
-       2485,
+       2594,
        218.2,
        759.2
       ],
       [
-       2502,
+       2610,
        221.6,
        752.8
       ],
       [
-       2518,
+       2627,
        225,
        745.8
       ],
       [
-       2535,
+       2644,
        228.4,
        738.1
       ],
       [
-       2551,
+       2660,
        231.8,
        729.9
       ],
       [
-       2568,
+       2677,
        235.2,
        721.1
       ],
       [
-       2585,
+       2694,
        238.3,
        711.8
       ],
       [
-       2601,
+       2710,
        241.4,
        702
       ],
       [
-       2618,
+       2727,
        244.2,
        691.8
       ],
       [
-       2635,
+       2744,
        246.9,
        681.3
       ],
       [
-       2652,
+       2760,
        249.3,
        670.5
       ],
       [
-       2668,
+       2777,
        251.4,
        659.6
       ],
       [
-       2685,
+       2794,
        253.3,
        648.7
       ],
       [
-       2702,
+       2811,
        255,
        637.8
       ],
       [
-       2718,
+       2827,
        256.4,
        627
       ],
       [
-       2735,
+       2843,
        257.6,
        616.4
       ],
       [
-       2752,
+       2860,
        258.6,
        606.2
       ],
       [
-       2768,
+       2877,
        259.3,
        596.3
       ],
       [
-       2785,
+       2894,
        259.9,
        586.8
       ],
       [
-       2802,
+       2910,
        260.4,
        577.9
       ],
       [
-       2818,
+       2928,
        260.6,
        569.5
       ],
       [
-       2835,
+       2944,
        260.8,
        561.7
       ],
       [
-       2852,
+       2960,
        260.9,
        554.6
       ],
       [
-       2868,
+       2977,
        260.9,
        548.1
       ],
       [
-       2886,
+       2994,
        260.9,
        542.2
       ],
       [
-       2902,
+       3011,
        260.8,
        537
       ],
       [
-       2918,
+       3027,
        260.7,
        532.4
       ],
       [
-       2935,
+       3043,
        260.5,
        528.4
       ],
       [
-       2951,
+       3060,
        260.4,
        525.1
       ],
       [
-       2968,
+       3077,
        260.3,
        522.3
       ],
       [
-       2985,
+       3094,
        260.2,
        520.1
       ],
       [
-       3001,
+       3110,
        260.1,
        518.3
       ],
       [
-       3018,
+       3127,
        260,
        517
       ],
       [
-       3035,
+       3144,
        260,
        516.1
       ],
       [
-       3051,
+       3160,
        260,
        515.5
       ],
       [
-       3068,
+       3177,
        259.9,
        515.2
       ],
       [
-       3085,
+       3193,
        259.9,
        515.1
       ],
       [
-       3101,
+       3209,
        259.9,
        515.1
       ]
@@ -1086,376 +1098,382 @@
      "cur": "pointer"
     },
     {
-     "t": 4160,
+     "t": 4267,
      "kind": "wait",
      "label": "she works through the whole block"
     },
     {
-     "t": 8114,
+     "t": 8219,
      "kind": "assert",
      "status": "PASS",
      "label": "finishing the block earns her a slice"
     },
     {
-     "t": 8559,
+     "t": 8692,
      "kind": "shot",
      "label": "one-slice-earned"
     },
     {
-     "t": 9065,
+     "t": 9201,
      "kind": "nav",
      "label": "reopens the app from scratch"
     },
     {
-     "t": 10480,
+     "t": 10614,
      "kind": "assert",
      "status": "PASS",
      "label": "the slice she earned is still there"
     },
     {
-     "t": 10482,
+     "t": 10616,
      "kind": "assert",
      "status": "PASS",
      "label": "and the app no longer says she has nothing"
     },
     {
-     "t": 10946,
+     "t": 11090,
      "kind": "shot",
      "label": "slice-persists-after-reload"
     }
    ],
    "net": [
     {
-     "t": 1,
+     "t": 103,
      "method": "GET",
      "url": "/?focus=3&break=2",
      "status": 200,
      "type": "document"
     },
     {
-     "t": 110,
+     "t": 197,
      "method": "GET",
      "url": "https://fonts.googleapis.com/css2?family=Archivo:wght@500;800&family=Space+Grotesk:wght@400;600&display=swap",
      "status": 200,
      "type": "stylesheet"
     },
     {
-     "t": 263,
+     "t": 387,
      "method": "GET",
      "url": "https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxKsv4Rn.woff2",
      "status": 200,
      "type": "font"
     },
     {
-     "t": 277,
+     "t": 403,
      "method": "GET",
      "url": "https://fonts.gstatic.com/s/spacegrotesk/v22/V8mDoQDjQSkFtoMM3T6r8E7mPbF4C_k3HqU.woff2",
      "status": 200,
      "type": "font"
     },
     {
-     "t": 8561,
+     "t": 8695,
      "method": "GET",
      "url": "/?focus=3&break=2",
      "status": 200,
      "type": "document"
     },
     {
-     "t": 8563,
+     "t": 8699,
      "method": "GET",
      "url": "https://fonts.googleapis.com/css2?family=Archivo:wght@500;800&family=Space+Grotesk:wght@400;600&display=swap",
      "status": 200,
      "type": "stylesheet"
     },
     {
-     "t": 8564,
+     "t": 8700,
      "method": "GET",
      "url": "https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxKsv4Rn.woff2",
      "status": 200,
      "type": "font"
     },
     {
-     "t": 8564,
+     "t": 8701,
      "method": "GET",
      "url": "https://fonts.gstatic.com/s/spacegrotesk/v22/V8mDoQDjQSkFtoMM3T6r8E7mPbF4C_k3HqU.woff2",
      "status": 200,
      "type": "font"
     }
    ],
-   "video": "videos/03-slices-persist.webm"
+   "tracks": [
+    {
+     "id": 0,
+     "label": "session",
+     "video": "videos/03-slices-persist.webm"
+    }
+   ]
   },
   "04-reset-no-credit": {
-   "t0": 1785494264472,
+   "t0": 1785510805913,
    "events": [
     {
-     "t": 763,
+     "t": 902,
      "kind": "nav",
      "label": "opens the app"
     },
     {
-     "t": 3358,
+     "t": 3482,
      "kind": "tap",
      "x": 259.9375,
      "y": 515.09375,
      "label": "Maya starts a block",
      "path": [
       [
-       2247,
+       2370,
        195,
        793
       ],
       [
-       2263,
+       2387,
        195,
        792.9
       ],
       [
-       2280,
+       2405,
        194.9,
        792.5
       ],
       [
-       2298,
+       2420,
        194.8,
        792
       ],
       [
-       2314,
+       2438,
        194.7,
        791
       ],
       [
-       2329,
+       2454,
        194.4,
        789.7
       ],
       [
-       2347,
+       2470,
        194.1,
        787.9
       ],
       [
-       2364,
+       2487,
        193.8,
        785.6
       ],
       [
-       2380,
+       2504,
        193.4,
        782.7
       ],
       [
-       2397,
+       2520,
        193,
        779.3
       ],
       [
-       2414,
+       2537,
        192.6,
        775.3
       ],
       [
-       2431,
+       2554,
        192.3,
        770.7
       ],
       [
-       2447,
+       2570,
        192,
        765.4
       ],
       [
-       2464,
+       2587,
        191.8,
        759.5
       ],
       [
-       2480,
+       2604,
        191.7,
        753
       ],
       [
-       2497,
+       2620,
        191.9,
        745.8
       ],
       [
-       2514,
+       2638,
        192.2,
        738.1
       ],
       [
-       2531,
+       2654,
        192.8,
        729.8
       ],
       [
-       2547,
+       2669,
        193.6,
        721
       ],
       [
-       2564,
+       2687,
        194.8,
        711.6
       ],
       [
-       2580,
+       2704,
        196.2,
        701.9
       ],
       [
-       2597,
+       2719,
        198,
        691.8
       ],
       [
-       2614,
+       2737,
        200,
        681.4
       ],
       [
-       2631,
+       2754,
        202.3,
        670.9
       ],
       [
-       2647,
+       2770,
        204.9,
        660.2
       ],
       [
-       2665,
+       2787,
        207.7,
        649.4
       ],
       [
-       2680,
+       2804,
        210.8,
        638.7
       ],
       [
-       2697,
+       2820,
        214,
        628.2
       ],
       [
-       2714,
+       2837,
        217.3,
        617.8
       ],
       [
-       2731,
+       2854,
        220.7,
        607.8
       ],
       [
-       2747,
+       2870,
        224.1,
        598.1
       ],
       [
-       2764,
+       2887,
        227.6,
        588.8
       ],
       [
-       2781,
+       2904,
        231,
        580.1
       ],
       [
-       2797,
+       2920,
        234.3,
        571.8
       ],
       [
-       2814,
+       2937,
        237.4,
        564.1
       ],
       [
-       2831,
+       2954,
        240.4,
        557
       ],
       [
-       2847,
+       2970,
        243.3,
        550.5
       ],
       [
-       2864,
+       2987,
        245.9,
        544.6
       ],
       [
-       2882,
+       3004,
        248.3,
        539.3
       ],
       [
-       2897,
+       3020,
        250.5,
        534.6
       ],
       [
-       2913,
+       3037,
        252.4,
        530.5
       ],
       [
-       2930,
+       3054,
        254.1,
        526.9
       ],
       [
-       2946,
+       3070,
        255.5,
        524
       ],
       [
-       2963,
+       3087,
        256.8,
        521.5
       ],
       [
-       2980,
+       3104,
        257.7,
        519.5
       ],
       [
-       2996,
+       3120,
        258.5,
        517.9
       ],
       [
-       3013,
+       3136,
        259.1,
        516.8
       ],
       [
-       3030,
+       3154,
        259.5,
        516
       ],
       [
-       3046,
+       3170,
        259.7,
        515.5
       ],
       [
-       3063,
+       3186,
        259.9,
        515.2
       ],
       [
-       3080,
+       3204,
        259.9,
        515.1
       ],
       [
-       3096,
+       3220,
        259.9,
        515.1
       ]
@@ -1463,249 +1481,249 @@
      "cur": "pointer"
     },
     {
-     "t": 4154,
+     "t": 4277,
      "kind": "wait",
      "label": "she works part of the way in"
     },
     {
-     "t": 7476,
+     "t": 7599,
      "kind": "tap",
      "x": 93.9375,
      "y": 515.09375,
      "label": "she abandons it and hits Reset",
      "path": [
       [
-       6447,
+       6570,
        259.9,
        515.1
       ],
       [
-       6475,
+       6587,
        259.8,
        515.1
       ],
       [
-       6480,
+       6603,
        259.6,
        515.2
       ],
       [
-       6497,
+       6620,
        259.2,
        515.4
       ],
       [
-       6513,
+       6637,
        258.5,
        515.7
       ],
       [
-       6530,
+       6654,
        257.5,
        516.2
       ],
       [
-       6547,
+       6670,
        256.2,
        516.7
       ],
       [
-       6563,
+       6687,
        254.6,
        517.4
       ],
       [
-       6580,
+       6703,
        252.5,
        518.2
       ],
       [
-       6596,
+       6720,
        250.1,
        519.1
       ],
       [
-       6613,
+       6737,
        247.2,
        520
       ],
       [
-       6630,
+       6753,
        243.8,
        521.1
       ],
       [
-       6646,
+       6770,
        240,
        522.1
       ],
       [
-       6664,
+       6787,
        235.8,
        523.2
       ],
       [
-       6681,
+       6804,
        231,
        524.2
       ],
       [
-       6697,
+       6821,
        225.9,
        525.1
       ],
       [
-       6714,
+       6836,
        220.3,
        525.9
       ],
       [
-       6731,
+       6854,
        214.4,
        526.6
       ],
       [
-       6748,
+       6870,
        208.1,
        527.2
       ],
       [
-       6764,
+       6887,
        201.5,
        527.6
       ],
       [
-       6781,
+       6904,
        194.6,
        527.8
       ],
       [
-       6797,
+       6921,
        187.6,
        527.9
       ],
       [
-       6814,
+       6937,
        180.5,
        527.8
       ],
       [
-       6831,
+       6954,
        173.4,
        527.5
       ],
       [
-       6848,
+       6970,
        166.2,
        527
       ],
       [
-       6864,
+       6987,
        159.2,
        526.5
       ],
       [
-       6879,
+       7004,
        152.4,
        525.8
       ],
       [
-       6897,
+       7020,
        145.8,
        525
       ],
       [
-       6913,
+       7037,
        139.5,
        524.2
       ],
       [
-       6930,
+       7053,
        133.6,
        523.3
       ],
       [
-       6946,
+       7070,
        128,
        522.3
       ],
       [
-       6963,
+       7087,
        122.8,
        521.4
       ],
       [
-       6980,
+       7103,
        118.1,
        520.5
       ],
       [
-       6996,
+       7120,
        113.9,
        519.7
       ],
       [
-       7013,
+       7137,
        110,
        518.9
       ],
       [
-       7030,
+       7154,
        106.7,
        518.2
       ],
       [
-       7046,
+       7170,
        103.8,
        517.5
       ],
       [
-       7063,
+       7187,
        101.3,
        516.9
       ],
       [
-       7080,
+       7204,
        99.3,
        516.4
       ],
       [
-       7096,
+       7220,
        97.6,
        516
       ],
       [
-       7114,
+       7238,
        96.3,
        515.7
       ],
       [
-       7131,
+       7253,
        95.4,
        515.5
       ],
       [
-       7147,
+       7271,
        94.7,
        515.3
       ],
       [
-       7164,
+       7287,
        94.3,
        515.2
       ],
       [
-       7181,
+       7304,
        94,
        515.1
       ],
       [
-       7197,
+       7320,
        94,
        515.1
       ],
       [
-       7214,
+       7338,
        93.9,
        515.1
       ]
@@ -1713,60 +1731,66 @@
      "cur": "pointer"
     },
     {
-     "t": 8274,
+     "t": 8398,
      "kind": "assert",
      "status": "PASS",
      "label": "the timer goes back to a full, untouched block"
     },
     {
-     "t": 8275,
+     "t": 8399,
      "kind": "assert",
      "status": "PASS",
      "label": "the button offers Start again, as if nothing had run"
     },
     {
-     "t": 8276,
+     "t": 8400,
      "kind": "assert",
      "status": "PASS",
      "label": "and crucially she earns NO slice for the abandoned work"
     },
     {
-     "t": 8742,
+     "t": 8880,
      "kind": "shot",
      "label": "reset-full-block"
     }
    ],
    "net": [
     {
-     "t": 2,
+     "t": 58,
      "method": "GET",
      "url": "/?focus=60",
      "status": 200,
      "type": "document"
     },
     {
-     "t": 102,
+     "t": 201,
      "method": "GET",
      "url": "https://fonts.googleapis.com/css2?family=Archivo:wght@500;800&family=Space+Grotesk:wght@400;600&display=swap",
      "status": 200,
      "type": "stylesheet"
     },
     {
-     "t": 236,
+     "t": 397,
      "method": "GET",
      "url": "https://fonts.gstatic.com/s/spacegrotesk/v22/V8mDoQDjQSkFtoMM3T6r8E7mPbF4C_k3HqU.woff2",
      "status": 200,
      "type": "font"
     },
     {
-     "t": 261,
+     "t": 400,
      "method": "GET",
      "url": "https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxKsv4Rn.woff2",
      "status": 200,
      "type": "font"
     }
    ],
-   "video": "videos/04-reset-no-credit.webm"
+   "tracks": [
+    {
+     "id": 0,
+     "label": "session",
+     "video": "videos/04-reset-no-credit.webm"
+    }
+   ]
   }
  }
 }
