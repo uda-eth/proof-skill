@@ -2,7 +2,7 @@
 
 ## ✅ PROVEN — 17/17 assertions across 4 journeys
 
-Against `http://localhost:4173` · 2026-07-20 · [interactive proof — watch the run](REPORT.html)
+Against `http://localhost:4173` · 2026-07-31 · [interactive proof — watch the run](REPORT.html)
 
 ![journey replay](replay.gif)
 
@@ -33,13 +33,13 @@ Same journey step on the merge-base build (left) and this branch (right).
 > The core promise: a focus block runs, the wedge drains, and completion hands off to a break automatically
 
 - ⏸ (manual) grant notification permission — effect staged via API — a human performs this step in real use
-- ✅ idle timer shows the full 25:00 focus block
-- ✅ mode chip reads Focus
-- ✅ primary control offers Start
-- ✅ running: control flips to Pause
-- ✅ running: wedge is draining (time below 00:04) — 00:03
-- ✅ completion hands off to Break automatically
-- ✅ break block queued at full 00:03
+- ✅ the timer is ready with a full 25-minute block — reads 25:00
+- ✅ it starts in Focus mode, not on a break
+- ✅ the main button invites her to Start
+- ✅ the block is running — the button now offers Pause
+- ✅ the countdown is ticking down — now at 00:03
+- ✅ when the block ends it moves her to a break by itself
+- ✅ the break starts fresh, at its full length — reads 00:03
 
 <img src="shots/01-focus-cycle/01-idle-focus.png" width="160"> <img src="shots/01-focus-cycle/02-focus-running.png" width="160"> <img src="shots/01-focus-cycle/03-break-queued.png" width="160">
 
@@ -47,9 +47,9 @@ Same journey step on the merge-base build (left) and this branch (right).
 
 > Pause freezes the wedge exactly where it is; Resume continues from there
 
-- ✅ paused time does not move — 00:58
-- ✅ control offers Resume while paused
-- ✅ resume continues the countdown
+- ✅ while paused, the clock does not lose a second — still 00:57
+- ✅ the button now offers to Resume
+- ✅ it carries on from where it stopped, not from the top — resumed below 00:57
 
 <img src="shots/02-pause-resume/01-paused.png" width="160"> <img src="shots/02-pause-resume/02-resumed.png" width="160">
 
@@ -57,10 +57,10 @@ Same journey step on the merge-base build (left) and this branch (right).
 
 > A completed focus block earns a slice that survives a full reload
 
-- ✅ empty state invites the first block
-- ✅ one slice earned after completing a block
-- ✅ the earned slice survives a reload
-- ✅ empty-state prompt stays gone
+- ✅ she has earned nothing yet, and the app says so
+- ✅ finishing the block earns her a slice
+- ✅ the slice she earned is still there
+- ✅ and the app no longer says she has nothing
 
 <img src="shots/03-slices-persist/01-one-slice-earned.png" width="160"> <img src="shots/03-slices-persist/02-slice-persists-after-reload.png" width="160">
 
@@ -68,9 +68,9 @@ Same journey step on the merge-base build (left) and this branch (right).
 
 > Reset restores the full block — and never awards a slice for abandoned work
 
-- ✅ reset restores the full block
-- ✅ control returns to Start
-- ✅ no slice awarded for an abandoned block
+- ✅ the timer goes back to a full, untouched block — reads 01:00
+- ✅ the button offers Start again, as if nothing had run
+- ✅ and crucially she earns NO slice for the abandoned work
 
 <img src="shots/04-reset-no-credit/01-reset-full-block.png" width="160">
 

@@ -1,8 +1,8 @@
 // /proof demo — user journeys for the wedge pomodoro app (demo/pomodoro-app).
 // Self-contained: spawns a static server for the app, drives it in real Chrome
 // at phone size, asserts every step, screenshots every state, and SCREEN-
-// RECORDS every journey (clean video; the player draws the reticle overlay
-// from the logged input coordinates).
+// RECORDS every journey (clean video; the player redraws a real cursor from
+// the pointer path logged during the run).
 // Writes report.json + REPORT.md + the REPORT.html proof page (+ replay.gif).
 //   node demo/pomodoro-journeys/run.mjs              # prove this build
 //   node demo/pomodoro-journeys/run.mjs --baseline   # capture the merge-base
@@ -34,26 +34,124 @@ let browser;
 
 // ── replay capture: screen-recorded video + input log → the REPORT.html player ─────────
 // The run is recorded as a CLEAN screen video (no cursor baked in). Every
-// tap logs its boundingBox center to replay.json; the player draws the reticle
-// from those coordinates on top of the video, so it can be toggled off.
+// tap logs its target and the pointer's sampled path to replay.json; the player
+// redraws a real cursor along that path on top of the video, so it can be
+// toggled off.
 // Off in --baseline or with --no-replay.
 const REPLAY = !BASELINE && !ARGS.includes('--no-replay');
 const replays = {};
 const rp = j => (replays[j] ??= { t0: Date.now(), events: [], net: [] });
+/** Log a replay event and RETURN it, so an assertion's proof box can be hung on
+ *  the same object the player will read. */
 const ev = (j, e) => {
-  if (REPLAY) rp(j).events.push({ t: Date.now() - rp(j).t0, ...e });
+  if (!REPLAY) return null;
+  const o = { t: Date.now() - rp(j).t0, ...e };
+  rp(j).events.push(o);
+  return o;
 };
+
+// ── pacing: the recording has a HUMAN AUDIENCE ──────────────────────────────
+// Time is budgeted per BEAT: the pointer travels, HOVERS on the target (so the
+// app's hover state renders), presses with the button held (so :active renders),
+// then the frame holds long enough to read the consequence. `nav` is the longest
+// — a navigation repaints everything and the viewer re-orients from scratch.
+// PROOF_PACE=fast collapses it for CI, where nobody is watching.
+const PACE =
+  process.env.PROOF_PACE === 'fast'
+    ? { travel: 0, settle: 0, press: 0, after: 120, nav: 150, type: 0 }
+    : { travel: 550, settle: 260, press: 90, after: 700, nav: 1400, type: 45 };
+
+// ── human pointer motion ────────────────────────────────────────────────────
+// locator.click() TELEPORTS the mouse and presses in the same instant: measured
+// on this very app, that's ONE mousemove and ~2 frames of :hover, so hover
+// states, :active and CSS transitions never render and the recording shows an
+// inert app that suddenly changes. We drive the real pointer instead — a cubic
+// Bézier bowed off the straight line, a minimum-jerk velocity profile, duration
+// scaled by distance. Seeded, so reruns reproduce the same motion.
+const rng = seed => {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+};
+const seeds = {};
+const seedOf = j => {
+  let h = 0;
+  for (let i = 0; i < j.length; i++) h = (Math.imul(h, 31) + j.charCodeAt(i)) | 0;
+  seeds[j] = (seeds[j] || 0) + 1;
+  return (h ^ Math.imul(seeds[j], 0x9e3779b1)) >>> 0;
+};
+const CURSOR = new WeakMap();
+const restPoint = () => ({ x: Math.round(VIEWPORT.width * 0.5), y: Math.round(VIEWPORT.height * 0.94) });
+
+async function glide(page, j, to, seed) {
+  const from = CURSOR.get(page) || restPoint();
+  const d = Math.hypot(to.x - from.x, to.y - from.y);
+  CURSOR.set(page, { x: to.x, y: to.y });
+  if (!PACE.travel || d < 1.5) {
+    await page.mouse.move(to.x, to.y);
+    return;
+  }
+  const r = rng(seed);
+  const ms = PACE.travel * (0.45 + 0.42 * Math.log2(1 + d / 55));
+  const steps = Math.max(14, Math.min(52, Math.round(ms / 15)));
+  const uy0 = (to.y - from.y) / d, ux0 = (to.x - from.x) / d;
+  const bow = d * (0.06 + 0.15 * r()) * (r() < 0.5 ? -1 : 1);
+  const c1 = { x: from.x + (to.x - from.x) * 0.28 - uy0 * bow * 0.9, y: from.y + (to.y - from.y) * 0.28 + ux0 * bow * 0.9 };
+  const c2 = { x: from.x + (to.x - from.x) * 0.72 - uy0 * bow * 0.5, y: from.y + (to.y - from.y) * 0.72 + ux0 * bow * 0.5 };
+
+  const bez = t => {
+    const m = 1 - t;
+    return {
+      x: m * m * m * from.x + 3 * m * m * t * c1.x + 3 * m * t * t * c2.x + t * t * t * to.x,
+      y: m * m * m * from.y + 3 * m * m * t * c1.y + 3 * m * t * t * c2.y + t * t * t * to.y,
+    };
+  };
+  const jerk = t => t * t * t * (10 - 15 * t + 6 * t * t);
+  const path = [];
+  const t0 = Date.now();
+  for (let i = 1; i <= steps; i++) {
+    const { x, y } = bez(jerk(i / steps));
+    await page.mouse.move(x, y);
+    if (REPLAY) path.push([Date.now() - rp(j).t0, Math.round(x * 10) / 10, Math.round(y * 10) / 10]);
+    const lag = t0 + (ms * i) / steps - Date.now();
+    if (lag > 1) await page.waitForTimeout(lag);
+  }
+  return path;
+}
+/** Travel to an element, then HOVER long enough for the app to react. */
+async function reach(page, j, el) {
+  await el.scrollIntoViewIfNeeded().catch(() => {});
+  const { x, y } = await center(el);
+  // What the OS cursor would have looked like here — the player redraws the
+  // cursor from this, so it turns into a hand only where the real one did.
+  const cur = await el.evaluate(n => getComputedStyle(n).cursor).catch(() => '');
+  const path = await glide(page, j, { x, y }, seedOf(j));
+  await page.waitForTimeout(PACE.settle);
+  return { x, y, path, cur };
+}
+/** Press and release with the button held — so :active renders. */
+async function press(page) {
+  await page.mouse.down();
+  await page.waitForTimeout(PACE.press);
+  await page.mouse.up();
+}
 const center = async el => {
   const box = await el.boundingBox().catch(() => null);
   return box ? { x: box.x + box.width / 2, y: box.y + box.height / 2 } : { x: 0, y: 0 };
 };
-/** Tap an element — logs the click point for the player's reticle overlay. */
+/** Tap an element — real pointer travel, hover, then a held press. */
+// `label` is captioned ON the video as the action happens — write it as the
+// user's intent, not as a selector.
 async function tap(page, j, selector, label = '') {
   const el = page.locator(selector).first();
-  const { x, y } = await center(el);
-  ev(j, { kind: 'tap', x, y, label });
-  await el.click();
-  await page.waitForTimeout(250);
+  const { x, y, path, cur } = await reach(page, j, el);
+  ev(j, { kind: 'tap', x, y, label, path, cur });
+  await press(page);
+  await page.waitForTimeout(PACE.after);
 }
 /**
  * A step a machine physically can't perform — fingerprint/passkey, CAPTCHA,
@@ -87,15 +185,23 @@ async function manual(page, j, label, { stage } = {}) {
   } else {
     console.log(`   ⏸  MANUAL (unattended): ${label} — stage its effect or run interactively`);
   }
-  await page.waitForTimeout(200);
+  await page.waitForTimeout(PACE.after);
 }
+/** Navigate, then HOLD — the whole screen just changed and the viewer has to
+ *  re-orient. A navigation with no dwell is the most disorienting cut in a run. */
 async function navTo(page, j, url, label = '') {
   await page.goto(url, { waitUntil: 'networkidle' });
+  // The pointer doesn't survive a document swap — put the hand back at rest.
+  CURSOR.delete(page);
+  // Label for a VIEWER ('reload the page'), never a raw URL or query string.
   ev(j, { kind: 'nav', label: label || url.replace(BASE, '') || '/' });
+  await page.waitForTimeout(PACE.nav);
 }
 async function pause(page, j, ms, label = '') {
-  await page.waitForTimeout(ms);
+  // Logged BEFORE the wait: the caption must say what's happening DURING the
+  // pause, or the longest stretches of the run have nothing explaining them.
   ev(j, { kind: 'wait', label: label || `${ms}ms` });
+  await page.waitForTimeout(ms);
 }
 /** Close a session and bank its screen recording as videos/<journey>.webm. */
 async function closeSession(s, j) {
@@ -115,6 +221,13 @@ function dir(j) {
   fs.mkdirSync(d, { recursive: true });
   return d;
 }
+/**
+ * Record one asserted step. `at` is the LOCATOR THAT PROVES IT (optional): the
+ * cursor marks the cause — where the click landed — and `at` marks the EFFECT,
+ * outlined on the video as the assertion fires. What changed is usually nowhere
+ * near what you clicked, which is exactly why runs are hard to follow.
+ * Pass it and `await rec(...)` — the box is measured at assertion time.
+ */
 function rec(j, step, ok, note = '') {
   results.push({ journey: j, step, status: ok ? 'PASS' : 'FAIL', note });
   ev(j, { kind: 'assert', status: ok ? 'PASS' : 'FAIL', label: step });
@@ -166,29 +279,30 @@ const J = (name, fn) => (JOURNEYS[name] = fn);
 J('01-focus-cycle', async () => {
   const j = '01-focus-cycle';
   const s = await freshSession(j);
-  await navTo(s.page, j, BASE);
+  await navTo(s.page, j, BASE, 'opens the app');
   // A native notification-permission prompt is a genuine OS dialog Playwright
   // can't click — mark it MANUAL. The staged no-op keeps the demo automated
   // (interactively, manual() would pause here for a human); the report shows
   // this as a manual step, never blended into the machine-driven assertions.
   await manual(s.page, j, 'grant notification permission', { stage: async () => { await new Promise(r => setTimeout(r, 1500)); } });
-  rec(j, 'idle timer shows the full 25:00 focus block', (await timeText(s.page)) === '25:00');
-  rec(j, 'mode chip reads Focus', /focus/i.test(await modeText(s.page)));
-  rec(j, 'primary control offers Start', (await startLabel(s.page)) === 'Start');
+  // Step names are written for a VIEWER; the technical value goes in `note`,
+  // which is where the ledger shows it.
+  await rec(j, 'the timer is ready with a full 25-minute block', (await timeText(s.page)) === '25:00', 'reads 25:00');
+  await rec(j, 'it starts in Focus mode, not on a break', /focus/i.test(await modeText(s.page)), '');
+  await rec(j, 'the main button invites her to Start', (await startLabel(s.page)) === 'Start', '');
   await shot(s.page, j, 1, 'idle-focus');
 
-  // Fast cycle for the completion path (4s focus / 3s break via query params).
-  await navTo(s.page, j, `${BASE}/?focus=4&break=3`, 'fast cycle · ?focus=4&break=3');
-  await tap(s.page, j, START, 'Start');
-  await pause(s.page, j, 1250, 'wedge draining');
-  rec(j, 'running: control flips to Pause', (await startLabel(s.page)) === 'Pause');
+  await navTo(s.page, j, `${BASE}/?focus=4&break=3`, 'reopens with shortened blocks');
+  await tap(s.page, j, START, 'Maya starts the focus block');
+  await pause(s.page, j, 1250, 'the ring drains as the block runs');
+  await rec(j, 'the block is running — the button now offers Pause', (await startLabel(s.page)) === 'Pause', '');
   const mid = await timeText(s.page);
-  rec(j, 'running: wedge is draining (time below 00:04)', mid < '00:04', mid);
+  await rec(j, 'the countdown is ticking down', mid < '00:04', 'now at ' + mid);
   await shot(s.page, j, 2, 'focus-running');
 
-  await pause(s.page, j, 3500, 'block completes');
-  rec(j, 'completion hands off to Break automatically', /break/i.test(await modeText(s.page)));
-  rec(j, 'break block queued at full 00:03', (await timeText(s.page)) === '00:03');
+  await pause(s.page, j, 3500, 'waiting for the block to complete');
+  await rec(j, 'when the block ends it moves her to a break by itself', /break/i.test(await modeText(s.page)), '');
+  await rec(j, 'the break starts fresh, at its full length', (await timeText(s.page)) === '00:03', 'reads 00:03');
   await shot(s.page, j, 3, 'break-queued');
   await closeSession(s, j);
 });
@@ -197,19 +311,19 @@ J('01-focus-cycle', async () => {
 J('02-pause-resume', async () => {
   const j = '02-pause-resume';
   const s = await freshSession(j);
-  await navTo(s.page, j, `${BASE}/?focus=60`);
-  await tap(s.page, j, START, 'Start');
-  await pause(s.page, j, 1950, 'counting down');
-  await tap(s.page, j, START, 'Pause');
+  await navTo(s.page, j, `${BASE}/?focus=60`, 'opens the app');
+  await tap(s.page, j, START, 'Maya starts the block');
+  await pause(s.page, j, 1950, 'the block runs for a couple of seconds');
+  await tap(s.page, j, START, 'she pauses it');
   const frozen = await timeText(s.page);
-  await pause(s.page, j, 1350, 'holding while paused');
-  rec(j, 'paused time does not move', (await timeText(s.page)) === frozen, frozen);
-  rec(j, 'control offers Resume while paused', (await startLabel(s.page)) === 'Resume');
+  await pause(s.page, j, 1350, 'time passes while it sits paused');
+  await rec(j, 'while paused, the clock does not lose a second', (await timeText(s.page)) === frozen, 'still ' + frozen);
+  await rec(j, 'the button now offers to Resume', (await startLabel(s.page)) === 'Resume', '');
   await shot(s.page, j, 1, 'paused');
 
-  await tap(s.page, j, START, 'Resume');
-  await pause(s.page, j, 1250, 'countdown resumes');
-  rec(j, 'resume continues the countdown', (await timeText(s.page)) < frozen);
+  await tap(s.page, j, START, 'she resumes');
+  await pause(s.page, j, 1250, 'the countdown picks up again');
+  await rec(j, 'it carries on from where it stopped, not from the top', (await timeText(s.page)) < frozen, 'resumed below ' + frozen);
   await shot(s.page, j, 2, 'resumed');
   await closeSession(s, j);
 });
@@ -218,23 +332,24 @@ J('02-pause-resume', async () => {
 J('03-slices-persist', async () => {
   const j = '03-slices-persist';
   const s = await freshSession(j);
-  await navTo(s.page, j, `${BASE}/?focus=3&break=2`);
+  await navTo(s.page, j, `${BASE}/?focus=3&break=2`, 'opens the app');
   // count()-guarded so the --baseline capture (no slices UI at all) records a
   // clean FAIL and still reaches every shot instead of throwing mid-journey.
   const empty = s.page.locator('[data-testid="slices-empty"]');
-  rec(
+  await rec(
     j,
-    'empty state invites the first block',
-    (await empty.count()) === 1 && (await empty.innerText()).includes('start a focus block')
+    'she has earned nothing yet, and the app says so',
+    (await empty.count()) === 1 && (await empty.innerText()).includes('start a focus block'),
+    '',
   );
-  await tap(s.page, j, START, 'Start');
-  await pause(s.page, j, 3950, 'block completes');
-  rec(j, 'one slice earned after completing a block', (await s.page.locator('[data-testid="slice-done"]').count()) === 1);
+  await tap(s.page, j, START, 'Maya starts a block');
+  await pause(s.page, j, 3950, 'she works through the whole block');
+  await rec(j, 'finishing the block earns her a slice', (await s.page.locator('[data-testid="slice-done"]').count()) === 1, '');
   await shot(s.page, j, 1, 'one-slice-earned');
 
-  await navTo(s.page, j, `${BASE}/?focus=3&break=2`, 'reload');
-  rec(j, 'the earned slice survives a reload', (await s.page.locator('[data-testid="slice-done"]').count()) === 1);
-  rec(j, 'empty-state prompt stays gone', !(await s.page.locator('[data-testid="slices-empty"]').isVisible()));
+  await navTo(s.page, j, `${BASE}/?focus=3&break=2`, 'reopens the app from scratch');
+  await rec(j, 'the slice she earned is still there', (await s.page.locator('[data-testid="slice-done"]').count()) === 1, '');
+  await rec(j, 'and the app no longer says she has nothing', !(await s.page.locator('[data-testid="slices-empty"]').isVisible()), '');
   await shot(s.page, j, 2, 'slice-persists-after-reload');
   await closeSession(s, j);
 });
@@ -243,13 +358,13 @@ J('03-slices-persist', async () => {
 J('04-reset-no-credit', async () => {
   const j = '04-reset-no-credit';
   const s = await freshSession(j);
-  await navTo(s.page, j, `${BASE}/?focus=60`);
-  await tap(s.page, j, START, 'Start');
-  await pause(s.page, j, 2250, 'mid-block');
-  await tap(s.page, j, '[data-testid="reset"]', 'Reset');
-  rec(j, 'reset restores the full block', (await timeText(s.page)) === '01:00');
-  rec(j, 'control returns to Start', (await startLabel(s.page)) === 'Start');
-  rec(j, 'no slice awarded for an abandoned block', (await s.page.locator('[data-testid="slice-done"]').count()) === 0);
+  await navTo(s.page, j, `${BASE}/?focus=60`, 'opens the app');
+  await tap(s.page, j, START, 'Maya starts a block');
+  await pause(s.page, j, 2250, 'she works part of the way in');
+  await tap(s.page, j, '[data-testid="reset"]', 'she abandons it and hits Reset');
+  await rec(j, 'the timer goes back to a full, untouched block', (await timeText(s.page)) === '01:00', 'reads 01:00');
+  await rec(j, 'the button offers Start again, as if nothing had run', (await startLabel(s.page)) === 'Start', '');
+  await rec(j, 'and crucially she earns NO slice for the abandoned work', (await s.page.locator('[data-testid="slice-done"]').count()) === 0, '');
   await shot(s.page, j, 1, 'reset-full-block');
   await closeSession(s, j);
 });
@@ -278,7 +393,7 @@ async function main() {
   if (REPLAY)
     fs.writeFileSync(
       path.join(FOLDER, 'replay.json'),
-      JSON.stringify({ device: DEVICE, viewport: VIEWPORT, overlay: true, journeys: replays }, null, 1)
+      JSON.stringify({ device: DEVICE, viewport: VIEWPORT, overlay: true, pace: PACE, journeys: replays }, null, 1)
     );
   const PROMISES = {
     '01-focus-cycle':

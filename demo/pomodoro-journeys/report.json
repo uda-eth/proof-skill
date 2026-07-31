@@ -1,7 +1,7 @@
 {
   "title": "wedge pomodoro user journeys",
   "base": "http://localhost:4173",
-  "generated": "2026-07-20",
+  "generated": "2026-07-31",
   "verdict": "PROVEN",
   "pass": 17,
   "fail": 0,
@@ -40,103 +40,103 @@
     },
     {
       "journey": "01-focus-cycle",
-      "step": "idle timer shows the full 25:00 focus block",
+      "step": "the timer is ready with a full 25-minute block",
+      "status": "PASS",
+      "note": "reads 25:00"
+    },
+    {
+      "journey": "01-focus-cycle",
+      "step": "it starts in Focus mode, not on a break",
       "status": "PASS",
       "note": ""
     },
     {
       "journey": "01-focus-cycle",
-      "step": "mode chip reads Focus",
+      "step": "the main button invites her to Start",
       "status": "PASS",
       "note": ""
     },
     {
       "journey": "01-focus-cycle",
-      "step": "primary control offers Start",
+      "step": "the block is running — the button now offers Pause",
       "status": "PASS",
       "note": ""
     },
     {
       "journey": "01-focus-cycle",
-      "step": "running: control flips to Pause",
+      "step": "the countdown is ticking down",
+      "status": "PASS",
+      "note": "now at 00:03"
+    },
+    {
+      "journey": "01-focus-cycle",
+      "step": "when the block ends it moves her to a break by itself",
       "status": "PASS",
       "note": ""
     },
     {
       "journey": "01-focus-cycle",
-      "step": "running: wedge is draining (time below 00:04)",
+      "step": "the break starts fresh, at its full length",
       "status": "PASS",
-      "note": "00:03"
+      "note": "reads 00:03"
     },
     {
-      "journey": "01-focus-cycle",
-      "step": "completion hands off to Break automatically",
+      "journey": "02-pause-resume",
+      "step": "while paused, the clock does not lose a second",
       "status": "PASS",
-      "note": ""
+      "note": "still 00:57"
     },
     {
-      "journey": "01-focus-cycle",
-      "step": "break block queued at full 00:03",
+      "journey": "02-pause-resume",
+      "step": "the button now offers to Resume",
       "status": "PASS",
       "note": ""
     },
     {
       "journey": "02-pause-resume",
-      "step": "paused time does not move",
+      "step": "it carries on from where it stopped, not from the top",
       "status": "PASS",
-      "note": "00:58"
+      "note": "resumed below 00:57"
     },
     {
-      "journey": "02-pause-resume",
-      "step": "control offers Resume while paused",
-      "status": "PASS",
-      "note": ""
-    },
-    {
-      "journey": "02-pause-resume",
-      "step": "resume continues the countdown",
+      "journey": "03-slices-persist",
+      "step": "she has earned nothing yet, and the app says so",
       "status": "PASS",
       "note": ""
     },
     {
       "journey": "03-slices-persist",
-      "step": "empty state invites the first block",
+      "step": "finishing the block earns her a slice",
       "status": "PASS",
       "note": ""
     },
     {
       "journey": "03-slices-persist",
-      "step": "one slice earned after completing a block",
+      "step": "the slice she earned is still there",
       "status": "PASS",
       "note": ""
     },
     {
       "journey": "03-slices-persist",
-      "step": "the earned slice survives a reload",
-      "status": "PASS",
-      "note": ""
-    },
-    {
-      "journey": "03-slices-persist",
-      "step": "empty-state prompt stays gone",
+      "step": "and the app no longer says she has nothing",
       "status": "PASS",
       "note": ""
     },
     {
       "journey": "04-reset-no-credit",
-      "step": "reset restores the full block",
+      "step": "the timer goes back to a full, untouched block",
+      "status": "PASS",
+      "note": "reads 01:00"
+    },
+    {
+      "journey": "04-reset-no-credit",
+      "step": "the button offers Start again, as if nothing had run",
       "status": "PASS",
       "note": ""
     },
     {
       "journey": "04-reset-no-credit",
-      "step": "control returns to Start",
-      "status": "PASS",
-      "note": ""
-    },
-    {
-      "journey": "04-reset-no-credit",
-      "step": "no slice awarded for an abandoned block",
+      "step": "and crucially she earns NO slice for the abandoned work",
       "status": "PASS",
       "note": ""
     }

@@ -4,12 +4,15 @@
 //   report.json  — machine-readable
 //   REPORT.md    — GitHub-renderable: verdict, replay.gif, before/after, steps
 //   REPORT.html  — THE proof page: a minimal, monochrome player (video is the
-//                  hero; a synced reticle overlay you can toggle off; no text
-//                  floats on the video) with the evidence tucked in a quiet,
-//                  collapsed section below. Light by default, subtle dark
-//                  toggle. Everything embedded so the one file opens anywhere.
-// The reticle is NOT baked into the recording — the runner records a clean
-// video and logs input coordinates; the player draws the reticle on top, so it
+//                  hero) with the evidence tucked in a quiet, collapsed section
+//                  below. Light by default, subtle dark toggle. Everything
+//                  embedded so the one file opens anywhere.
+//                  The app is the whole point, so nothing is drawn over it but
+//                  the cursor: no captions, no title cards, no highlight boxes.
+//                  Assertions live in the ledger below, where they belong.
+// The cursor is NOT baked into the recording — a screen recording never captures
+// one. The runner records clean video and logs the pointer's sampled path; the
+// player redraws the cursor on top from those samples, so it
 // can be hidden. Before/after pairs appear when shots-baseline/ exists.
 // No dependencies beyond playwright; ffmpeg (optional) → mp4 + replay.gif.
 import fs from 'fs';
@@ -209,9 +212,13 @@ export async function writeReports({ folder, base, title = 'user journeys', resu
   ]);
   const isrc = rel => embedded[rel] || rel;
   const data = hasPlayer
-    ? JSON.stringify({ viewport: replay.viewport, overlay: replay.overlay === true, journeys: jr }).replace(/</g, '\\u003c')
+    ? JSON.stringify({ viewport: replay.viewport, overlay: replay.overlay === true, pace: replay.pace || null, journeys: jr }).replace(/</g, '\\u003c')
     : 'null';
   const arNum = hasPlayer ? (replay.viewport.width / replay.viewport.height).toFixed(4) : (390 / 844).toFixed(4);
+  // Cursor sized in the app's own coordinate space and expressed as a % of frame
+  // width, so it scales with the player at any size. 18 gives an arrow body of
+  // ~13px — a real macOS pointer is ~12×19 at 1x.
+  const curPct = ((18 / (hasPlayer ? replay.viewport.width : 390)) * 100).toFixed(3);
   const evMeta = [
     `${journeys.length} ${journeys.length === 1 ? 'journey' : 'journeys'}`,
     `${pass + fail} assertions`,
@@ -250,6 +257,7 @@ export async function writeReports({ folder, base, title = 'user journeys', resu
     --sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
     --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
     --vw: ${arNum};
+    --cur: ${curPct}%;
   }
   :root[data-theme="dark"] {
     --bg: #0e0f11; --surface: #16181b; --ink: #e9eaed; --mute: #979ba2; --faint: #5e626a;
@@ -278,18 +286,34 @@ export async function writeReports({ folder, base, title = 'user journeys', resu
   /* ── player: the video is the hero ── */
   .player { display: flex; flex-direction: column; gap: 12px; }
   .viewport { display: flex; align-items: center; justify-content: center; }
-  .frame { position: relative; width: min(100%, calc(66vh * var(--vw))); aspect-ratio: var(--vw); background: var(--frame); border: 1px solid var(--line2); border-radius: 12px; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 18px 40px -30px rgba(0,0,0,0.4); }
+  .frame { position: relative; width: min(100%, calc(78vh * var(--vw))); aspect-ratio: var(--vw); background: var(--frame); border: 1px solid var(--line2); border-radius: 12px; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 18px 40px -30px rgba(0,0,0,0.4); }
   .frame video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
   .ov { position: absolute; inset: 0; pointer-events: none; }
-  .reticle { position: absolute; inset: 0; }
-  .reticle .h, .reticle .v { position: absolute; background: rgba(255,255,255,0.9); box-shadow: 0 0 0 0.5px rgba(10,12,16,0.4); }
-  .reticle .h { left: 0; right: 0; height: 1px; } .reticle .v { top: 0; bottom: 0; width: 1px; }
-  .reticle .m { position: absolute; width: 26px; height: 26px; border-radius: 8px; border: 2px solid #fff; background: rgba(16,18,22,0.35); box-shadow: 0 1px 8px rgba(10,12,16,0.4); transform: translate(-50%,-50%); }
-  .reticle .p { position: absolute; width: 26px; height: 26px; border-radius: 9px; border: 2px solid #fff; transform: translate(-50%,-50%); opacity: 0; }
+  /* An actual cursor, not a targeting reticle. A screen recording never captures
+     the OS pointer, so the player redraws one from the recorded path — arrow
+     while travelling, hand over a clickable target (because the real cursor was
+     a hand there), and a small dip on the press. --cur scales it with the frame
+     so it stays the right size relative to the app, at any player width. */
+  .cursor { position: absolute; width: var(--cur); transform-origin: 0 0; transition: transform 90ms ease; }
+  .cursor > span { position: absolute; left: 0; top: 0; width: 100%; }
+  /* one soft shadow, the way the macOS pointer floats — not a hard drop */
+  .cursor svg { display: block; width: 100%; height: auto; overflow: visible;
+    filter: drop-shadow(0 1px 2.5px rgba(0,0,0,0.22)); }
+  /* translate puts each glyph's HOTSPOT on the recorded point: the arrow's tip,
+     the hand's fingertip. (transform %s resolve against the element's own box —
+     margin %s would resolve against width for both axes and mis-place Y.) */
+  .cursor .arrow { transform: translate(-14.7%, -10%); }
+  .cursor .hand { display: none; transform: translate(-39.3%, -7.5%); }
+  .cursor.point .arrow { display: none; }
+  .cursor.point .hand { display: block; }
+  /* the only click feedback is the cursor dipping, as a real hand would press —
+     no ripple, no expanding ring: real cursors don't do that, and the app's own
+     :active and :hover states are now visible enough to read the click */
+  .cursor.down { transform: scale(0.9); }
   /* fullscreen the whole player so the controls stay usable; pseudo-fs is the
      fallback for sandboxed iframes that block the Fullscreen API */
   .player:fullscreen, .pfs #player { position: fixed; inset: 0; z-index: 9999; width: 100vw; height: 100vh; margin: 0; padding: 18px 22px 20px; background: var(--bg); justify-content: center; }
-  .player:fullscreen .frame, .pfs #player .frame { width: min(100%, calc(70vh * var(--vw))); }
+  .player:fullscreen .frame, .pfs #player .frame { width: min(100%, calc(88vh * var(--vw))); }
 
   /* ── control bar ── */
   .bar { display: flex; align-items: center; gap: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; }
@@ -367,7 +391,20 @@ ${
       <div class="frame" id="frame">
         <video id="vid" playsinline muted preload="auto"></video>
         <div class="ov" id="ov">
-          <div class="reticle" id="reticle"><span class="h"></span><span class="v"></span><span class="p"></span><span class="m"></span></div>
+          <div class="cursor" id="cursor">
+            <!-- macOS arrow: slender, black, white border. The corners are rounded
+                 by stroking the same polygon twice with round joins — white
+                 underneath for the border, black on top for the body — which
+                 softens the silhouette without hand-authoring arcs. -->
+            <span class="arrow"><svg viewBox="0 0 17 25" xmlns="http://www.w3.org/2000/svg">
+              <path d="M2.5 2.5 2.5 19.6 6.9 15.7 9.6 22.3 12.4 21.1 9.8 14.7 15.1 14.5Z" fill="#fff" stroke="#fff" stroke-width="3.4" stroke-linejoin="round" stroke-linecap="round"/>
+              <path d="M2.5 2.5 2.5 19.6 6.9 15.7 9.6 22.3 12.4 21.1 9.8 14.7 15.1 14.5Z" fill="#1d1d1f" stroke="#1d1d1f" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+            </svg></span>
+            <!-- macOS link hand: white fill, dark outline -->
+            <span class="hand"><svg viewBox="0 0 24 26" xmlns="http://www.w3.org/2000/svg">
+              <g transform="translate(1.6,0.6) scale(1.12)"><path d="M7 1.2c-1.1 0-1.9.9-1.9 1.9v8L4 9.9c-.7-.7-1.8-.7-2.5 0-.6.7-.6 1.7 0 2.4l4.2 5c.8 1 2 1.5 3.2 1.5h4.2c2.1 0 3.8-1.7 3.8-3.8V9.6c0-.9-.7-1.7-1.7-1.7-.3 0-.6.1-.9.2-.1-.8-.8-1.4-1.7-1.4-.4 0-.8.2-1.1.4-.2-.7-.9-1.2-1.6-1.2-.3 0-.7.1-.9.3V3.1c0-1-.9-1.9-1.9-1.9z" fill="#fff" stroke="#15171a" stroke-width="1.35" stroke-linejoin="round"/></g>
+            </svg></span>
+          </div>
         </div>
       </div>
     </div>
@@ -375,9 +412,9 @@ ${
       <button class="ico play" id="play" title="play / pause (space)">▶</button>
       <span class="tc" id="tc">0.0 / 0.0</span>
       <div class="scrubwrap"><div class="track"></div><div class="fill" id="fill"></div><div id="ticks"></div><input id="scrub" type="range" min="0" max="1000" value="0" aria-label="scrub"></div>
-      <button class="ico txt" id="speed" title="speed">2×</button>
+      <button class="ico txt" id="speed" title="speed">1×</button>
       <span class="sep"></span>
-      <button class="ico" id="ovbtn" title="reticle overlay">◎</button>
+      <button class="ico" id="ovbtn" title="cursor">◎</button>
       <button class="ico" id="fs" title="fullscreen (f)">⛶</button>
     </div>
     <div class="cap">
@@ -396,7 +433,7 @@ ${
     ${viewports.length ? `<div class="eyebrow">Viewport sweep</div><div class="strip">${viewports.map(v => `<a href="${v}" target="_blank"><img src="${isrc(v)}" alt="${esc(path.basename(v, '.png'))}" loading="lazy"></a>`).join('')}</div>` : ''}
   </section>
 
-  <footer>Generated by the /proof journey runner — regenerate with <code>node run.mjs</code>. Every ✓/✗ is an assertion that ran against the live app${hasPlayer ? '; the video is a real screen recording of the run, with the reticle drawn from the logged input coordinates' : ''}.</footer>
+  <footer>Generated by the /proof journey runner — regenerate with <code>node run.mjs</code>. Every ✓/✗ is an assertion that ran against the live app${hasPlayer ? '; the video is a real screen recording of the run — the cursor, captions and proof outlines are drawn by this page from the pointer path logged during the run, never baked into the recording' : ''}.</footer>
 </div>
 <script>
 (function () {
@@ -416,10 +453,13 @@ ${
   var DATA = ${data};
   if (!DATA) return;
   var INPUT = { tap: 1, fill: 1, swipe: 1 };
-  var SPEEDS = [1, 2, 4, 8];
-  // Only draw the reticle overlay for CLEAN recordings (DATA.overlay). Older
-  // packs baked the reticle into the video — drawing another would double it.
-  var jIdx = 0, speed = 2, reticleOn = !!DATA.overlay, scrubbing = false;
+  // 1× is the honest default: the run was PACED to be watchable at real speed,
+  // so opening at 2× threw away exactly the legibility the pacing bought.
+  var SPEEDS = [1, 1.5, 2, 4];
+  // Only draw the cursor for CLEAN recordings (DATA.overlay). Older packs baked
+  // an overlay into the video — drawing another would double it.
+  var jIdx = 0, speed = 1, cursorOn = !!DATA.overlay, scrubbing = false;
+  var PRESS_MS = (DATA.pace && DATA.pace.press) || 90;
   if (!DATA.overlay) { var _ob = document.getElementById('ovbtn'); if (_ob) _ob.style.display = 'none'; }
   var $ = function (id) { return document.getElementById(id); };
   var vid = $('vid'), vw = DATA.viewport;
@@ -431,44 +471,74 @@ ${
   var escs = function (s) { var d = document.createElement('i'); d.textContent = s == null ? '' : String(s); return d.innerHTML; };
   var ease = function (t) { return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; };
 
+  // The pointer's REAL path, as sampled during the run. The runner drives an
+  // actual mouse along a bowed, eased, human-ish trajectory and logs every
+  // sample, so the cursor replays what physically happened instead of drawing
+  // a straight line the pointer never took. In packs recorded before paths
+  // existed there IS no motion between clicks, so the cursor holds at the last
+  // click and jumps to the next — which is what actually happened.
+  function track() {
+    var j = J();
+    if (j._track) return j._track;
+    var s = [];
+    j.events.forEach(function (e) {
+      if (e.path && e.path.length) e.path.forEach(function (p) { s.push({ t: p[0], x: p[1], y: p[2] }); });
+      if (INPUT[e.kind]) {
+        s.push({ t: e.t, x: e.x, y: e.y });
+        if (e.kind === 'swipe' && e.x2 != null) s.push({ t: e.t + 420, x: e.x2, y: e.y2 });
+      }
+    });
+    s.sort(function (a, b) { return a.t - b.t; });
+    j._track = s;
+    return s;
+  }
   function cursorAt(c) {
-    var ins = J().events.filter(function (e) { return INPUT[e.kind]; });
-    if (!ins.length) return null;
-    var prev = null, next = null;
-    for (var i = 0; i < ins.length; i++) { if (ins[i].t <= c) prev = ins[i]; else { next = ins[i]; break; } }
-    if (!prev) return { x: ins[0].x, y: ins[0].y, rest: true, age: 1e9 };
-    if (prev.kind === 'swipe' && c < prev.t + 420) {
-      var ks = ease(Math.min(1, (c - prev.t) / 420));
-      return { x: prev.x + (prev.x2 - prev.x) * ks, y: prev.y + (prev.y2 - prev.y) * ks, rest: false, age: 0 };
+    var s = track();
+    if (!s.length) return null;
+    if (c <= s[0].t) return { x: s[0].x, y: s[0].y };
+    var i = 0;
+    for (; i < s.length - 1; i++) if (s[i + 1].t > c) break;
+    var a = s[i], b = s[i + 1];
+    if (!b) return { x: a.x, y: a.y };
+    var span = b.t - a.t;
+    // A long span between samples means the pointer was PARKED, not travelling
+    // slowly across the screen — hold it still rather than sliding it.
+    if (span > 260) return { x: a.x, y: a.y };
+    var k = span > 0 ? (c - a.t) / span : 1;
+    return { x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k };
+  }
+
+  // Which glyph the real cursor was showing: a hand while it rests on something
+  // clickable, an arrow otherwise. "cur" is the element's computed CSS cursor,
+  // captured during the run — not a guess.
+  function inputs() { return J().events.filter(function (e) { return INPUT[e.kind]; }); }
+  function glyphAt(c) {
+    var ins = inputs();
+    for (var i = 0; i < ins.length; i++) {
+      var e = ins[i], nx = ins[i + 1];
+      var from = e.path && e.path.length ? e.path[e.path.length - 1][0] : e.t - 260;
+      var to = nx ? (nx.path && nx.path.length ? nx.path[0][0] : nx.t) : e.t + 1400;
+      if (c >= from && c < to) return e.cur === 'pointer' ? 'point' : '';
     }
-    var from = prev.kind === 'swipe' ? { x: prev.x2, y: prev.y2 } : { x: prev.x, y: prev.y };
-    var age = c - prev.t;
-    if (!next) return { x: from.x, y: from.y, rest: true, age: age };
-    var travel = Math.min(650, (next.t - prev.t) * 0.5), start = next.t - travel;
-    if (c < start || travel <= 0) return { x: from.x, y: from.y, rest: true, age: age };
-    var k = ease((c - start) / travel);
-    return { x: from.x + (next.x - from.x) * k, y: from.y + (next.y - from.y) * k, rest: false, age: 0 };
+    return '';
   }
-
+  function pressedAt(c) {
+    var ins = inputs();
+    for (var i = 0; i < ins.length; i++) if (c >= ins[i].t && c < ins[i].t + PRESS_MS) return true;
+    return false;
+  }
   function paintOverlay(c) {
-    var R = $('reticle');
-    if (!reticleOn) { R.style.display = 'none'; return; }
+    var C = $('cursor');
+    if (!cursorOn) { C.style.display = 'none'; return; }
     var cur = cursorAt(c);
-    if (!cur) { R.style.display = 'none'; return; }
-    R.style.display = '';
-    var X = (cur.x / vw.width) * 100, Y = (cur.y / vw.height) * 100;
-    R.querySelector('.h').style.top = Y + '%';
-    R.querySelector('.v').style.left = X + '%';
-    var m = R.querySelector('.m'); m.style.left = X + '%'; m.style.top = Y + '%';
-    var p = R.querySelector('.p');
-    if (cur.rest && cur.age < 420) {
-      var f = cur.age / 420;
-      p.style.left = X + '%'; p.style.top = Y + '%'; p.style.opacity = 1 - f;
-      p.style.transform = 'translate(-50%,-50%) scale(' + (1 + f * 1.7) + ')';
-    } else p.style.opacity = 0;
+    if (!cur) { C.style.display = 'none'; return; }
+    C.style.display = '';
+    C.style.left = (cur.x / vw.width) * 100 + '%';
+    C.style.top = (cur.y / vw.height) * 100 + '%';
+    C.className = 'cursor' + (glyphAt(c) ? ' point' : '') + (pressedAt(c) ? ' down' : '');
   }
 
-  function paint() {
+  function draw() {
     var c = now();
     paintOverlay(c);
     var frac = Math.min(1, c / D());
@@ -476,7 +546,6 @@ ${
     if (!scrubbing) $('scrub').value = Math.round(frac * 1000);
     $('tc').textContent = fmt(Math.min(c, D())) + ' / ' + fmt(D());
     $('play').textContent = vid.paused ? '▶' : '❚❚';
-    requestAnimationFrame(paint);
   }
 
   function buildTabs() {
@@ -500,7 +569,7 @@ ${
   $('speed').addEventListener('click', function () {
     speed = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length]; vid.playbackRate = speed; this.textContent = speed + '×';
   });
-  $('ovbtn').addEventListener('click', function () { reticleOn = !reticleOn; this.classList.toggle('off', !reticleOn); });
+  $('ovbtn').addEventListener('click', function () { cursorOn = !cursorOn; this.classList.toggle('off', !cursorOn); });
   var pfs = false;
   function realFs() { return document.fullscreenElement || document.webkitFullscreenElement; }
   function toggleFs() {
@@ -530,7 +599,19 @@ ${
     }
   });
   switchJourney(0);
-  requestAnimationFrame(paint);
+
+  // rAF gives the cursor its smooth motion — but some embed sandboxes never fire
+  // it at all (the page isn't composited), and a player driven only by rAF looks
+  // DEAD there: the timecode sits at 0.0 / 0.0 and the cursor never moves. So run
+  // a timer as a backstop and let whichever clock is actually alive do the work.
+  var lastDraw = 0;
+  (function loop() { draw(); lastDraw = Date.now(); requestAnimationFrame(loop); })();
+  setInterval(function () { if (Date.now() - lastDraw > 200) draw(); }, 33);
+  // and repaint on the media's own events, so a fully frozen page still shows
+  // the right duration and position the moment the video reports them
+  ['loadedmetadata', 'timeupdate', 'durationchange', 'play', 'pause', 'seeked'].forEach(function (e) {
+    vid.addEventListener(e, draw);
+  });
 })();
 </script>
 </body>
@@ -547,8 +628,11 @@ async function tryGif({ folder, webm, ffmpeg }) {
     return;
   }
   try {
+    // Capped at 24s: paced runs are longer than they used to be, and an
+    // unbounded GIF is the one artifact that has to stay small enough to
+    // animate inline in a PR. The full run is in REPORT.html.
     execSync(
-      `ffmpeg -y -i "${webm}" -vf "fps=10,scale=480:-2:flags=lanczos,split[a][b];[a]palettegen[p];[b][p]paletteuse" "${path.join(folder, 'replay.gif')}"`,
+      `ffmpeg -y -i "${webm}" -t 24 -vf "fps=10,scale=480:-2:flags=lanczos,split[a][b];[a]palettegen[p];[b][p]paletteuse" "${path.join(folder, 'replay.gif')}"`,
       { stdio: 'pipe' }
     );
     console.log('(replay) replay.gif written');

@@ -9,6 +9,8 @@
 // shot() (screenshot), report.json + REPORT.md + REPORT.html are written,
 // exit is non-zero on any failure.
 // Usage: node <feature>-journeys/run.mjs [--baseline] [--device=desktop] [journey1,journey2]
+// The run is PACED for a human watching the recording (see PACE below);
+// PROOF_PACE=fast collapses the pacing for CI, where nobody is watching.
 //
 // --baseline captures the BEFORE side of before/after pairs. Stand up the
 // merge-base build on another port, then point the runner at it:
@@ -45,45 +47,182 @@ const results = [];
 let browser;
 
 // ── replay capture: screen-recorded video + input log → the REPORT.html player ─────────
-// The run is RECORDED as a CLEAN screen video (no cursor baked in). Drive the
-// UI through tap/fillIn/swipe/navTo/pause; each logs its input's real
-// boundingBox center to replay.json, and the player draws a reticle from those
-// coordinates on top of the video — so the overlay can be toggled off.
+// The run is RECORDED as a CLEAN screen video (no cursor baked in — a screen
+// recording never captures one). Drive the UI through tap/fillIn/swipe/navTo/
+// pause; each logs its target, its label, and the pointer's REAL sampled
+// path to replay.json, and the player redraws a real cursor along that path
+// on top of the video — so the overlay is honest, and can be toggled off.
 // Off in --baseline runs, or with --no-replay when you only want the pass.
 const REPLAY = !BASELINE && !ARGS.includes('--no-replay');
 const replays = {};
 const rp = j => (replays[j] ??= { t0: Date.now(), events: [], net: [] });
+/** Log a replay event and RETURN it, so late-arriving detail (an assertion's
+ *  proof box) can be attached to the same object the player will read. */
 const ev = (j, e) => {
-  if (REPLAY) rp(j).events.push({ t: Date.now() - rp(j).t0, ...e });
+  if (!REPLAY) return null;
+  const o = { t: Date.now() - rp(j).t0, ...e };
+  rp(j).events.push(o);
+  return o;
 };
+
+// ── pacing: the recording has a HUMAN AUDIENCE ──────────────────────────────
+// A reviewer watching this video does four things per action: find the cursor,
+// follow it to the target, register the click, then find WHAT CHANGED. A flat
+// delay serves none of them — it just makes an illegible run slow. So time is
+// budgeted per BEAT: the cursor travels, comes to REST on the target (the eye
+// needs a stationary target or it misses the consequence), the click lands, then
+// the frame holds long enough to read the result.
+//   travel → the pointer physically travels to the target over this
+//   settle → it HOVERS on the target before pressing, so the hover state renders
+//   press  → button held down, so :active renders
+//   after  → the consequence stays on screen, readable
+//   nav    → deliberately the longest: a navigation repaints the WHOLE screen
+//            and the viewer has to re-orient from scratch
+//   type   → per-character delay, so text is typed rather than pasted
+// PROOF_PACE=fast collapses it all for CI runs nobody watches.
+const PACE =
+  process.env.PROOF_PACE === 'fast'
+    ? { travel: 0, settle: 0, press: 0, after: 120, nav: 150, type: 0 }
+    : { travel: 550, settle: 260, press: 90, after: 700, nav: 1400, type: 45 };
 const center = async el => {
   const box = await el.boundingBox().catch(() => null);
   return box ? { x: box.x + box.width / 2, y: box.y + box.height / 2 } : { x: 0, y: 0 };
 };
-/** Tap an element — logs the click point for the player's reticle overlay. */
+
+// ── human pointer motion ────────────────────────────────────────────────────
+// The single biggest reason a run doesn't "feel" like a person: locator.click()
+// TELEPORTS the mouse to the target and presses in the same instant. Measured on
+// a real app, that delivers ONE mousemove and ~2 frames of :hover — so hover
+// states, focus rings and CSS transitions never render, and the recording is an
+// inert app that suddenly changes state. Effects with no visible cause.
+//
+// So we drive the real pointer instead, the way a hand actually moves:
+//   · a cubic Bézier bowed off the straight line — hands swoop, they don't rule
+//     lines — with the bow's size and side varied per move
+//   · a minimum-jerk velocity profile (10t³−15t⁴+6t⁵), the standard model of
+//     human reaching: fast acceleration, long deceleration into the target
+//   · duration scaled by distance à la Fitts's law, not a constant
+// Every sample is logged, so the player redraws a REAL cursor along the REAL
+// path — arrow while travelling, hand over a clickable target — instead of an
+// invented straight line the pointer never took.
+//
+// Seeded, not random: reruns produce the same motion, so the pack stays
+// reproducible while still looking hand-made.
+const rng = seed => {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+};
+const seeds = {};
+const seedOf = j => {
+  let h = 0;
+  for (let i = 0; i < j.length; i++) h = (Math.imul(h, 31) + j.charCodeAt(i)) | 0;
+  seeds[j] = (seeds[j] || 0) + 1;
+  return (h ^ Math.imul(seeds[j], 0x9e3779b1)) >>> 0;
+};
+/** Where the pointer currently rests, per page. Starts at the bottom centre —
+ *  roughly where a hand sits before it reaches for something. */
+const CURSOR = new WeakMap();
+const restPoint = () => ({ x: Math.round(VIEWPORT.width * 0.5), y: Math.round(VIEWPORT.height * 0.94) });
+
+/** Move the real pointer from wherever it is to `to`, like a hand would. */
+async function glide(page, j, to, seed) {
+  const from = CURSOR.get(page) || restPoint();
+  const d = Math.hypot(to.x - from.x, to.y - from.y);
+  CURSOR.set(page, { x: to.x, y: to.y });
+  if (!PACE.travel || d < 1.5) {
+    await page.mouse.move(to.x, to.y);
+    return;
+  }
+  const r = rng(seed);
+  const ms = PACE.travel * (0.45 + 0.42 * Math.log2(1 + d / 55)); // Fitts-ish
+  const steps = Math.max(14, Math.min(52, Math.round(ms / 15)));
+  const uy0 = (to.y - from.y) / d, ux0 = (to.x - from.x) / d;
+  const bow = d * (0.06 + 0.15 * r()) * (r() < 0.5 ? -1 : 1);
+  const c1 = { x: from.x + (to.x - from.x) * 0.28 - uy0 * bow * 0.9, y: from.y + (to.y - from.y) * 0.28 + ux0 * bow * 0.9 };
+  const c2 = { x: from.x + (to.x - from.x) * 0.72 - uy0 * bow * 0.5, y: from.y + (to.y - from.y) * 0.72 + ux0 * bow * 0.5 };
+  // Long throws overshoot and get corrected — the ballistic + corrective phases
+  // of real pointing. Short hops land directly, as they do for a person.
+
+  const bez = t => {
+    const m = 1 - t;
+    return {
+      x: m * m * m * from.x + 3 * m * m * t * c1.x + 3 * m * t * t * c2.x + t * t * t * to.x,
+      y: m * m * m * from.y + 3 * m * m * t * c1.y + 3 * m * t * t * c2.y + t * t * t * to.y,
+    };
+  };
+  const jerk = t => t * t * t * (10 - 15 * t + 6 * t * t); // minimum-jerk profile
+  const path = [];
+  const t0 = Date.now();
+  for (let i = 1; i <= steps; i++) {
+    const { x, y } = bez(jerk(i / steps));
+    await page.mouse.move(x, y);
+    if (REPLAY) path.push([Date.now() - rp(j).t0, Math.round(x * 10) / 10, Math.round(y * 10) / 10]);
+    const lag = t0 + (ms * i) / steps - Date.now();
+    if (lag > 1) await page.waitForTimeout(lag);
+  }
+  return path;
+}
+/** Travel to an element, then HOVER on it long enough for the app to react. */
+async function reach(page, j, el) {
+  await el.scrollIntoViewIfNeeded().catch(() => {});
+  const { x, y } = await center(el); // measured AFTER any scroll
+  // What the OS cursor would actually have looked like over this element. A
+  // screen recording never captures the cursor, so the player redraws one — and
+  // it turns into a hand here only because the real one would have.
+  const cur = await el.evaluate(n => getComputedStyle(n).cursor).catch(() => '');
+  const path = await glide(page, j, { x, y }, seedOf(j));
+  await page.waitForTimeout(PACE.settle); // hover state renders, transition completes
+  return { x, y, path, cur };
+}
+/** Press and release with the button actually held — so :active renders. */
+async function press(page) {
+  await page.mouse.down();
+  await page.waitForTimeout(PACE.press);
+  await page.mouse.up();
+}
+// `label` is not decoration — the player captions it ON the video as the action
+// happens, so a viewer knows what to look for before the screen changes. Write
+// it as the user's intent ('Start the focus block'), not as a selector.
+/** Tap an element — real pointer travel, hover, then a held press. */
 async function tap(page, j, selector, label = '') {
   const el = page.locator(selector).first();
-  const { x, y } = await center(el);
-  ev(j, { kind: 'tap', x, y, label });
-  await el.click();
-  await page.waitForTimeout(250);
+  const { x, y, path, cur } = await reach(page, j, el);
+  ev(j, { kind: 'tap', x, y, label, path, cur });
+  await press(page);
+  await page.waitForTimeout(PACE.after);
 }
-/** Type into a field — logs the point + the text. */
+/** Type into a field — reach it, click in, then type character by character. */
 async function fillIn(page, j, selector, text, label = '') {
   const el = page.locator(selector).first();
-  const { x, y } = await center(el);
-  ev(j, { kind: 'fill', x, y, text, label });
-  await el.fill(text);
-  await page.waitForTimeout(250);
+  const { x, y, path, cur } = await reach(page, j, el);
+  ev(j, { kind: 'fill', x, y, text, label, path, cur });
+  await press(page);
+  await el.fill('');
+  await page.waitForTimeout(PACE.press); // a beat after focusing, before typing
+  // Typed, not pasted: fill() drops the whole string in a single frame, which
+  // reads on video as a rendering glitch rather than as someone entering text.
+  await el.pressSequentially(text, { delay: PACE.type });
+  await page.waitForTimeout(PACE.after);
 }
-/** Drag/swipe between two viewport points — logs both ends. */
+/** Drag/swipe between two viewport points — reach the start, then drag. */
 async function swipe(page, j, [x, y], [x2, y2], label = '') {
-  ev(j, { kind: 'swipe', x, y, x2, y2, label });
-  await page.mouse.move(x, y);
+  const path = (await glide(page, j, { x, y }, seedOf(j))) || [];
+  await page.waitForTimeout(PACE.settle);
+  // Logged at the START of the drag — the caption has to appear as the gesture
+  // begins, not once it's already over.
+  const e = ev(j, { kind: 'swipe', x, y, x2, y2, label, path });
   await page.mouse.down();
-  await page.mouse.move(x2, y2, { steps: 12 });
+  await page.waitForTimeout(PACE.press);
+  // The drag itself is a hand movement too — bow and ease it like any other.
+  const drag = await glide(page, j, { x: x2, y: y2 }, seedOf(j));
+  if (e) e.path = path.concat(drag || []);
   await page.mouse.up();
-  await page.waitForTimeout(250);
+  await page.waitForTimeout(PACE.after);
 }
 
 /**
@@ -118,18 +257,29 @@ async function manual(page, j, label, { stage } = {}) {
   } else {
     console.log(`   ⏸  MANUAL (unattended): ${label} — stage its effect or run interactively`);
   }
-  await page.waitForTimeout(200);
+  await page.waitForTimeout(PACE.after);
 }
 
-/** Navigate; the reticle survives across documents via sessionStorage. */
+/** Navigate, then HOLD — the whole screen just changed and the viewer has to
+ *  re-orient from scratch. This is the longest beat in the budget for a reason:
+ *  a navigation with no dwell is the single most disorienting cut in a run. */
 async function navTo(page, j, url, label = '') {
   await page.goto(url, { waitUntil: 'networkidle' });
+  // The pointer doesn't survive a document swap — put the hand back at rest so
+  // the next reach starts from somewhere believable instead of the last target.
+  CURSOR.delete(page);
+  // Label this for a VIEWER ('back to the dashboard'), never a raw URL or query
+  // string — the path is in the network log for whoever needs it.
   ev(j, { kind: 'nav', label: label || url.replace(BASE, '') || '/' });
+  await page.waitForTimeout(PACE.nav);
 }
 /** Let the app run (timers, animations) — recorded in real time. */
 async function pause(page, j, ms, label = '') {
-  await page.waitForTimeout(ms);
+  // Logged BEFORE the wait, not after: the caption has to say what's happening
+  // DURING the pause ('block completes'), or the longest stretches of the run
+  // are the ones with nothing on screen explaining them.
   ev(j, { kind: 'wait', label: label || `${ms}ms` });
+  await page.waitForTimeout(ms);
 }
 /** Close a session and bank its screen recording as videos/<journey>.webm. */
 async function closeSession(s, j) {
@@ -150,7 +300,24 @@ function dir(j) {
   fs.mkdirSync(d, { recursive: true });
   return d;
 }
-/** Record one asserted step. Every claim in the report goes through here. */
+/**
+ * Record one asserted step. Every claim in the report goes through here.
+ *
+ * `step` is read aloud on the video as a caption, so write it as a PLAIN
+ * SENTENCE a stranger could follow — 'the timer is counting down', not
+ * 'running: elapsed < 4000'. Put the technical predicate in `note`, which is
+ * exactly what the ledger shows it for.
+ *
+ * `at` is the LOCATOR THAT PROVES IT (optional). The cursor marks the cause —
+ * where you clicked. `at` marks the EFFECT: the player outlines that region as
+ * the assertion fires. What changed is usually nowhere near what you clicked,
+ * and that gap is why a run is hard to follow. Pass it and `await rec(...)`:
+ *
+ *   await rec(j, 'break block is queued', mode === 'break', mode, page.locator('[data-testid="mode-chip"]'));
+ *
+ * The box is measured at assertion time, so it must be awaited to be accurate.
+ * Without `at`, rec() stays synchronous and awaiting it is a harmless no-op.
+ */
 function rec(j, step, ok, note = '') {
   results.push({ journey: j, step, status: ok ? 'PASS' : 'FAIL', note });
   ev(j, { kind: 'assert', status: ok ? 'PASS' : 'FAIL', label: step });
@@ -245,8 +412,10 @@ const PROMISES = {
 J('01-happy-path', async () => {
   const j = '01-happy-path';
   const a = await freshUser(j, 'Maya Brooks');
-  await navTo(a.page, j, `${BASE}/`);
-  rec(j, 'the new surface renders', await sel(a.page, '[data-testid="my-feature"]'));
+  await navTo(a.page, j, `${BASE}/`, 'opens the app');
+  // Open every journey by saying who this is and what they're about to try —
+  await rec(j, 'the new surface renders', await sel(a.page, '[data-testid="my-feature"]'), '',
+    a.page.locator('[data-testid="my-feature"]'));
   await shot(a.page, j, 1, 'feature-visible');
   // ...drive the core promise end to end through the act helpers so the
   // replay shows every input: tap/fillIn/swipe/pause...
@@ -315,9 +484,11 @@ async function main() {
   if (REPLAY)
     fs.writeFileSync(
       path.join(FOLDER, 'replay.json'),
-      // overlay:true marks the video as CLEAN (reticle drawn by the player, not
-      // baked in) so the player knows to draw one reticle, not double an old one.
-      JSON.stringify({ device: DEVICE, viewport: VIEWPORT, overlay: true, journeys: replays }, null, 1)
+      // overlay:true marks the video as CLEAN (cursor drawn by the player, not
+      // baked in) so the player knows to draw one cursor, not double an old one.
+      // pace travels with the pack so the player animates the cursor over the
+      // same beats the run actually recorded, instead of guessing from gaps.
+      JSON.stringify({ device: DEVICE, viewport: VIEWPORT, overlay: true, pace: PACE, journeys: replays }, null, 1)
     );
   const { pass, fail } = await writeReports({
     folder: FOLDER,

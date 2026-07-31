@@ -5,153 +5,424 @@
   "height": 844
  },
  "overlay": true,
+ "pace": {
+  "travel": 550,
+  "settle": 260,
+  "press": 90,
+  "after": 700,
+  "nav": 1400,
+  "type": 45
+ },
  "journeys": {
   "01-focus-cycle": {
-   "t0": 1784460082691,
+   "t0": 1785494226853,
    "events": [
     {
-     "t": 979,
+     "t": 845,
      "kind": "nav",
-     "label": "/"
+     "label": "opens the app"
     },
     {
-     "t": 981,
+     "t": 2247,
      "kind": "manual",
      "label": "grant notification permission",
      "mode": "staged"
     },
     {
-     "t": 2736,
+     "t": 4478,
      "kind": "assert",
      "status": "PASS",
-     "label": "idle timer shows the full 25:00 focus block"
+     "label": "the timer is ready with a full 25-minute block"
     },
     {
-     "t": 2741,
+     "t": 4480,
      "kind": "assert",
      "status": "PASS",
-     "label": "mode chip reads Focus"
+     "label": "it starts in Focus mode, not on a break"
     },
     {
-     "t": 2744,
+     "t": 4481,
      "kind": "assert",
      "status": "PASS",
-     "label": "primary control offers Start"
+     "label": "the main button invites her to Start"
     },
     {
-     "t": 3274,
+     "t": 4977,
      "kind": "shot",
      "label": "idle-focus"
     },
     {
-     "t": 3789,
+     "t": 5484,
      "kind": "nav",
-     "label": "fast cycle · ?focus=4&break=3"
+     "label": "reopens with shortened blocks"
     },
     {
-     "t": 3842,
+     "t": 8059,
      "kind": "tap",
      "x": 259.9375,
      "y": 515.09375,
-     "label": "Start"
+     "label": "Maya starts the focus block",
+     "path": [
+      [
+       6949,
+       195,
+       793
+      ],
+      [
+       6965,
+       195,
+       792.9
+      ],
+      [
+       6982,
+       194.8,
+       792.5
+      ],
+      [
+       6999,
+       194.6,
+       791.9
+      ],
+      [
+       7016,
+       194.3,
+       790.9
+      ],
+      [
+       7033,
+       193.9,
+       789.6
+      ],
+      [
+       7049,
+       193.3,
+       787.7
+      ],
+      [
+       7066,
+       192.6,
+       785.3
+      ],
+      [
+       7083,
+       191.8,
+       782.3
+      ],
+      [
+       7100,
+       190.8,
+       778.8
+      ],
+      [
+       7116,
+       189.9,
+       774.7
+      ],
+      [
+       7133,
+       188.9,
+       769.9
+      ],
+      [
+       7150,
+       188,
+       764.5
+      ],
+      [
+       7166,
+       187.1,
+       758.4
+      ],
+      [
+       7183,
+       186.4,
+       751.7
+      ],
+      [
+       7200,
+       185.9,
+       744.4
+      ],
+      [
+       7217,
+       185.6,
+       736.6
+      ],
+      [
+       7233,
+       185.6,
+       728.1
+      ],
+      [
+       7250,
+       186,
+       719.2
+      ],
+      [
+       7266,
+       186.7,
+       709.7
+      ],
+      [
+       7283,
+       187.8,
+       699.9
+      ],
+      [
+       7301,
+       189.2,
+       689.8
+      ],
+      [
+       7316,
+       191.1,
+       679.4
+      ],
+      [
+       7333,
+       193.4,
+       668.8
+      ],
+      [
+       7350,
+       196,
+       658.1
+      ],
+      [
+       7366,
+       199,
+       647.4
+      ],
+      [
+       7382,
+       202.2,
+       636.7
+      ],
+      [
+       7400,
+       205.7,
+       626.3
+      ],
+      [
+       7416,
+       209.4,
+       616
+      ],
+      [
+       7433,
+       213.3,
+       606.1
+      ],
+      [
+       7450,
+       217.2,
+       596.5
+      ],
+      [
+       7467,
+       221.2,
+       587.3
+      ],
+      [
+       7483,
+       225.1,
+       578.7
+      ],
+      [
+       7501,
+       229,
+       570.6
+      ],
+      [
+       7516,
+       232.8,
+       563
+      ],
+      [
+       7532,
+       236.4,
+       556
+      ],
+      [
+       7549,
+       239.7,
+       549.6
+      ],
+      [
+       7566,
+       242.9,
+       543.9
+      ],
+      [
+       7586,
+       245.8,
+       538.7
+      ],
+      [
+       7599,
+       248.4,
+       534.1
+      ],
+      [
+       7616,
+       250.8,
+       530.1
+      ],
+      [
+       7633,
+       252.8,
+       526.6
+      ],
+      [
+       7649,
+       254.6,
+       523.7
+      ],
+      [
+       7665,
+       256,
+       521.3
+      ],
+      [
+       7682,
+       257.2,
+       519.4
+      ],
+      [
+       7699,
+       258.2,
+       517.9
+      ],
+      [
+       7715,
+       258.9,
+       516.7
+      ],
+      [
+       7732,
+       259.4,
+       516
+      ],
+      [
+       7749,
+       259.7,
+       515.5
+      ],
+      [
+       7765,
+       259.9,
+       515.2
+      ],
+      [
+       7782,
+       259.9,
+       515.1
+      ],
+      [
+       7799,
+       259.9,
+       515.1
+      ]
+     ],
+     "cur": "pointer"
     },
     {
-     "t": 5477,
+     "t": 8869,
      "kind": "wait",
-     "label": "wedge draining"
+     "label": "the ring drains as the block runs"
     },
     {
-     "t": 5485,
+     "t": 10124,
      "kind": "assert",
      "status": "PASS",
-     "label": "running: control flips to Pause"
+     "label": "the block is running — the button now offers Pause"
     },
     {
-     "t": 5488,
+     "t": 10126,
      "kind": "assert",
      "status": "PASS",
-     "label": "running: wedge is draining (time below 00:04)"
+     "label": "the countdown is ticking down"
     },
     {
-     "t": 6012,
+     "t": 10572,
      "kind": "shot",
      "label": "focus-running"
     },
     {
-     "t": 9517,
+     "t": 10572,
      "kind": "wait",
-     "label": "block completes"
+     "label": "waiting for the block to complete"
     },
     {
-     "t": 9521,
+     "t": 14077,
      "kind": "assert",
      "status": "PASS",
-     "label": "completion hands off to Break automatically"
+     "label": "when the block ends it moves her to a break by itself"
     },
     {
-     "t": 9525,
+     "t": 14079,
      "kind": "assert",
      "status": "PASS",
-     "label": "break block queued at full 00:03"
+     "label": "the break starts fresh, at its full length"
     },
     {
-     "t": 10062,
+     "t": 14546,
      "kind": "shot",
      "label": "break-queued"
     }
    ],
    "net": [
     {
-     "t": 35,
+     "t": 5,
      "method": "GET",
      "url": "/",
      "status": 200,
      "type": "document"
     },
     {
-     "t": 226,
+     "t": 124,
      "method": "GET",
      "url": "https://fonts.googleapis.com/css2?family=Archivo:wght@500;800&family=Space+Grotesk:wght@400;600&display=swap",
      "status": 200,
      "type": "stylesheet"
     },
     {
-     "t": 477,
+     "t": 341,
      "method": "GET",
      "url": "https://fonts.gstatic.com/s/spacegrotesk/v22/V8mDoQDjQSkFtoMM3T6r8E7mPbF4C_k3HqU.woff2",
      "status": 200,
      "type": "font"
     },
     {
-     "t": 478,
+     "t": 344,
      "method": "GET",
      "url": "https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxKsv4Rn.woff2",
      "status": 200,
      "type": "font"
     },
     {
-     "t": 3279,
+     "t": 4979,
      "method": "GET",
      "url": "/?focus=4&break=3",
      "status": 200,
      "type": "document"
     },
     {
-     "t": 3286,
+     "t": 4981,
      "method": "GET",
      "url": "https://fonts.googleapis.com/css2?family=Archivo:wght@500;800&family=Space+Grotesk:wght@400;600&display=swap",
      "status": 200,
      "type": "stylesheet"
     },
     {
-     "t": 3289,
+     "t": 4982,
      "method": "GET",
      "url": "https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxKsv4Rn.woff2",
      "status": 200,
      "type": "font"
     },
     {
-     "t": 3289,
+     "t": 4982,
      "method": "GET",
      "url": "https://fonts.gstatic.com/s/spacegrotesk/v22/V8mDoQDjQSkFtoMM3T6r8E7mPbF4C_k3HqU.woff2",
      "status": 200,
@@ -161,102 +432,367 @@
    "video": "videos/01-focus-cycle.webm"
   },
   "02-pause-resume": {
-   "t0": 1784460093002,
+   "t0": 1785494241467,
    "events": [
     {
-     "t": 860,
+     "t": 816,
      "kind": "nav",
-     "label": "/?focus=60"
+     "label": "opens the app"
     },
     {
-     "t": 923,
+     "t": 3396,
      "kind": "tap",
      "x": 259.9375,
      "y": 515.09375,
-     "label": "Start"
+     "label": "Maya starts the block",
+     "path": [
+      [
+       2285,
+       195,
+       793
+      ],
+      [
+       2301,
+       195,
+       792.9
+      ],
+      [
+       2318,
+       195,
+       792.6
+      ],
+      [
+       2335,
+       194.9,
+       792
+      ],
+      [
+       2352,
+       194.9,
+       791.1
+      ],
+      [
+       2368,
+       194.8,
+       789.8
+      ],
+      [
+       2385,
+       194.7,
+       788
+      ],
+      [
+       2402,
+       194.7,
+       785.8
+      ],
+      [
+       2418,
+       194.6,
+       783
+      ],
+      [
+       2435,
+       194.5,
+       779.7
+      ],
+      [
+       2452,
+       194.5,
+       775.7
+      ],
+      [
+       2469,
+       194.6,
+       771.2
+      ],
+      [
+       2485,
+       194.7,
+       766
+      ],
+      [
+       2502,
+       195,
+       760.3
+      ],
+      [
+       2518,
+       195.4,
+       753.8
+      ],
+      [
+       2535,
+       196,
+       746.8
+      ],
+      [
+       2552,
+       196.7,
+       739.2
+      ],
+      [
+       2568,
+       197.7,
+       730.9
+      ],
+      [
+       2585,
+       198.9,
+       722.2
+      ],
+      [
+       2602,
+       200.4,
+       712.9
+      ],
+      [
+       2618,
+       202,
+       703.3
+      ],
+      [
+       2635,
+       204,
+       693.2
+      ],
+      [
+       2652,
+       206.1,
+       682.9
+      ],
+      [
+       2669,
+       208.5,
+       672.3
+      ],
+      [
+       2685,
+       211,
+       661.6
+      ],
+      [
+       2701,
+       213.8,
+       650.8
+      ],
+      [
+       2718,
+       216.7,
+       640.1
+      ],
+      [
+       2735,
+       219.6,
+       629.5
+      ],
+      [
+       2752,
+       222.7,
+       619.1
+      ],
+      [
+       2768,
+       225.8,
+       609
+      ],
+      [
+       2785,
+       228.9,
+       599.2
+      ],
+      [
+       2802,
+       232,
+       589.9
+      ],
+      [
+       2818,
+       235,
+       581
+      ],
+      [
+       2835,
+       237.9,
+       572.6
+      ],
+      [
+       2852,
+       240.6,
+       564.8
+      ],
+      [
+       2868,
+       243.3,
+       557.6
+      ],
+      [
+       2885,
+       245.7,
+       551
+      ],
+      [
+       2902,
+       248,
+       545
+      ],
+      [
+       2920,
+       250,
+       539.7
+      ],
+      [
+       2935,
+       251.9,
+       534.9
+      ],
+      [
+       2951,
+       253.6,
+       530.7
+      ],
+      [
+       2968,
+       255,
+       527.2
+      ],
+      [
+       2985,
+       256.2,
+       524.1
+      ],
+      [
+       3001,
+       257.2,
+       521.6
+      ],
+      [
+       3018,
+       258.1,
+       519.6
+      ],
+      [
+       3035,
+       258.7,
+       518
+      ],
+      [
+       3051,
+       259.2,
+       516.8
+      ],
+      [
+       3068,
+       259.6,
+       516
+      ],
+      [
+       3085,
+       259.8,
+       515.5
+      ],
+      [
+       3101,
+       259.9,
+       515.2
+      ],
+      [
+       3118,
+       259.9,
+       515.1
+      ],
+      [
+       3135,
+       259.9,
+       515.1
+      ]
+     ],
+     "cur": "pointer"
     },
     {
-     "t": 3171,
+     "t": 4192,
      "kind": "wait",
-     "label": "counting down"
+     "label": "the block runs for a couple of seconds"
     },
     {
-     "t": 3184,
+     "t": 6447,
      "kind": "tap",
      "x": 259.9375,
      "y": 515.09375,
-     "label": "Pause"
+     "label": "she pauses it",
+     "cur": "pointer"
     },
     {
-     "t": 4818,
+     "t": 7246,
      "kind": "wait",
-     "label": "holding while paused"
+     "label": "time passes while it sits paused"
     },
     {
-     "t": 4824,
+     "t": 8601,
      "kind": "assert",
      "status": "PASS",
-     "label": "paused time does not move"
+     "label": "while paused, the clock does not lose a second"
     },
     {
-     "t": 4827,
+     "t": 8603,
      "kind": "assert",
      "status": "PASS",
-     "label": "control offers Resume while paused"
+     "label": "the button now offers to Resume"
     },
     {
-     "t": 5343,
+     "t": 9083,
      "kind": "shot",
      "label": "paused"
     },
     {
-     "t": 5354,
+     "t": 9379,
      "kind": "tap",
      "x": 259.9375,
      "y": 515.09375,
-     "label": "Resume"
+     "label": "she resumes",
+     "cur": "pointer"
     },
     {
-     "t": 6895,
+     "t": 10176,
      "kind": "wait",
-     "label": "countdown resumes"
+     "label": "the countdown picks up again"
     },
     {
-     "t": 6898,
+     "t": 11431,
      "kind": "assert",
      "status": "PASS",
-     "label": "resume continues the countdown"
+     "label": "it carries on from where it stopped, not from the top"
     },
     {
-     "t": 7433,
+     "t": 11882,
      "kind": "shot",
      "label": "resumed"
     }
    ],
    "net": [
     {
-     "t": 9,
+     "t": 2,
      "method": "GET",
      "url": "/?focus=60",
      "status": 200,
      "type": "document"
     },
     {
-     "t": 131,
+     "t": 117,
      "method": "GET",
      "url": "https://fonts.googleapis.com/css2?family=Archivo:wght@500;800&family=Space+Grotesk:wght@400;600&display=swap",
      "status": 200,
      "type": "stylesheet"
     },
     {
-     "t": 339,
+     "t": 314,
      "method": "GET",
      "url": "https://fonts.gstatic.com/s/spacegrotesk/v22/V8mDoQDjQSkFtoMM3T6r8E7mPbF4C_k3HqU.woff2",
      "status": 200,
      "type": "font"
     },
     {
-     "t": 357,
+     "t": 315,
      "method": "GET",
      "url": "https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxKsv4Rn.woff2",
      "status": 200,
@@ -266,117 +802,380 @@
    "video": "videos/02-pause-resume.webm"
   },
   "03-slices-persist": {
-   "t0": 1784460100608,
+   "t0": 1785494253417,
    "events": [
     {
-     "t": 794,
+     "t": 778,
      "kind": "nav",
-     "label": "/?focus=3&break=2"
+     "label": "opens the app"
     },
     {
-     "t": 838,
+     "t": 2199,
      "kind": "assert",
      "status": "PASS",
-     "label": "empty state invites the first block"
+     "label": "she has earned nothing yet, and the app says so"
     },
     {
-     "t": 871,
+     "t": 3363,
      "kind": "tap",
      "x": 259.9375,
      "y": 515.09375,
-     "label": "Start"
+     "label": "Maya starts a block",
+     "path": [
+      [
+       2252,
+       195,
+       793
+      ],
+      [
+       2268,
+       195.1,
+       792.9
+      ],
+      [
+       2285,
+       195.3,
+       792.6
+      ],
+      [
+       2301,
+       195.7,
+       792.2
+      ],
+      [
+       2318,
+       196.4,
+       791.4
+      ],
+      [
+       2335,
+       197.3,
+       790.3
+      ],
+      [
+       2352,
+       198.5,
+       788.9
+      ],
+      [
+       2367,
+       200,
+       787
+      ],
+      [
+       2385,
+       201.8,
+       784.7
+      ],
+      [
+       2402,
+       203.9,
+       781.9
+      ],
+      [
+       2418,
+       206.3,
+       778.5
+      ],
+      [
+       2435,
+       209,
+       774.6
+      ],
+      [
+       2452,
+       211.9,
+       770.1
+      ],
+      [
+       2468,
+       215,
+       764.9
+      ],
+      [
+       2485,
+       218.2,
+       759.2
+      ],
+      [
+       2502,
+       221.6,
+       752.8
+      ],
+      [
+       2518,
+       225,
+       745.8
+      ],
+      [
+       2535,
+       228.4,
+       738.1
+      ],
+      [
+       2551,
+       231.8,
+       729.9
+      ],
+      [
+       2568,
+       235.2,
+       721.1
+      ],
+      [
+       2585,
+       238.3,
+       711.8
+      ],
+      [
+       2601,
+       241.4,
+       702
+      ],
+      [
+       2618,
+       244.2,
+       691.8
+      ],
+      [
+       2635,
+       246.9,
+       681.3
+      ],
+      [
+       2652,
+       249.3,
+       670.5
+      ],
+      [
+       2668,
+       251.4,
+       659.6
+      ],
+      [
+       2685,
+       253.3,
+       648.7
+      ],
+      [
+       2702,
+       255,
+       637.8
+      ],
+      [
+       2718,
+       256.4,
+       627
+      ],
+      [
+       2735,
+       257.6,
+       616.4
+      ],
+      [
+       2752,
+       258.6,
+       606.2
+      ],
+      [
+       2768,
+       259.3,
+       596.3
+      ],
+      [
+       2785,
+       259.9,
+       586.8
+      ],
+      [
+       2802,
+       260.4,
+       577.9
+      ],
+      [
+       2818,
+       260.6,
+       569.5
+      ],
+      [
+       2835,
+       260.8,
+       561.7
+      ],
+      [
+       2852,
+       260.9,
+       554.6
+      ],
+      [
+       2868,
+       260.9,
+       548.1
+      ],
+      [
+       2886,
+       260.9,
+       542.2
+      ],
+      [
+       2902,
+       260.8,
+       537
+      ],
+      [
+       2918,
+       260.7,
+       532.4
+      ],
+      [
+       2935,
+       260.5,
+       528.4
+      ],
+      [
+       2951,
+       260.4,
+       525.1
+      ],
+      [
+       2968,
+       260.3,
+       522.3
+      ],
+      [
+       2985,
+       260.2,
+       520.1
+      ],
+      [
+       3001,
+       260.1,
+       518.3
+      ],
+      [
+       3018,
+       260,
+       517
+      ],
+      [
+       3035,
+       260,
+       516.1
+      ],
+      [
+       3051,
+       260,
+       515.5
+      ],
+      [
+       3068,
+       259.9,
+       515.2
+      ],
+      [
+       3085,
+       259.9,
+       515.1
+      ],
+      [
+       3101,
+       259.9,
+       515.1
+      ]
+     ],
+     "cur": "pointer"
     },
     {
-     "t": 5092,
+     "t": 4160,
      "kind": "wait",
-     "label": "block completes"
+     "label": "she works through the whole block"
     },
     {
-     "t": 5095,
+     "t": 8114,
      "kind": "assert",
      "status": "PASS",
-     "label": "one slice earned after completing a block"
+     "label": "finishing the block earns her a slice"
     },
     {
-     "t": 5634,
+     "t": 8559,
      "kind": "shot",
      "label": "one-slice-earned"
     },
     {
-     "t": 6145,
+     "t": 9065,
      "kind": "nav",
-     "label": "reload"
+     "label": "reopens the app from scratch"
     },
     {
-     "t": 6162,
+     "t": 10480,
      "kind": "assert",
      "status": "PASS",
-     "label": "the earned slice survives a reload"
+     "label": "the slice she earned is still there"
     },
     {
-     "t": 6166,
+     "t": 10482,
      "kind": "assert",
      "status": "PASS",
-     "label": "empty-state prompt stays gone"
+     "label": "and the app no longer says she has nothing"
     },
     {
-     "t": 6682,
+     "t": 10946,
      "kind": "shot",
      "label": "slice-persists-after-reload"
     }
    ],
    "net": [
     {
-     "t": 7,
+     "t": 1,
      "method": "GET",
      "url": "/?focus=3&break=2",
      "status": 200,
      "type": "document"
     },
     {
-     "t": 112,
+     "t": 110,
      "method": "GET",
      "url": "https://fonts.googleapis.com/css2?family=Archivo:wght@500;800&family=Space+Grotesk:wght@400;600&display=swap",
      "status": 200,
      "type": "stylesheet"
     },
     {
-     "t": 275,
+     "t": 263,
+     "method": "GET",
+     "url": "https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxKsv4Rn.woff2",
+     "status": 200,
+     "type": "font"
+    },
+    {
+     "t": 277,
      "method": "GET",
      "url": "https://fonts.gstatic.com/s/spacegrotesk/v22/V8mDoQDjQSkFtoMM3T6r8E7mPbF4C_k3HqU.woff2",
      "status": 200,
      "type": "font"
     },
     {
-     "t": 293,
-     "method": "GET",
-     "url": "https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxKsv4Rn.woff2",
-     "status": 200,
-     "type": "font"
-    },
-    {
-     "t": 5637,
+     "t": 8561,
      "method": "GET",
      "url": "/?focus=3&break=2",
      "status": 200,
      "type": "document"
     },
     {
-     "t": 5642,
+     "t": 8563,
      "method": "GET",
      "url": "https://fonts.googleapis.com/css2?family=Archivo:wght@500;800&family=Space+Grotesk:wght@400;600&display=swap",
      "status": 200,
      "type": "stylesheet"
     },
     {
-     "t": 5644,
+     "t": 8564,
      "method": "GET",
      "url": "https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxKsv4Rn.woff2",
      "status": 200,
      "type": "font"
     },
     {
-     "t": 5644,
+     "t": 8564,
      "method": "GET",
      "url": "https://fonts.gstatic.com/s/spacegrotesk/v22/V8mDoQDjQSkFtoMM3T6r8E7mPbF4C_k3HqU.woff2",
      "status": 200,
@@ -386,82 +1185,583 @@
    "video": "videos/03-slices-persist.webm"
   },
   "04-reset-no-credit": {
-   "t0": 1784460107452,
+   "t0": 1785494264472,
    "events": [
     {
-     "t": 826,
+     "t": 763,
      "kind": "nav",
-     "label": "/?focus=60"
+     "label": "opens the app"
     },
     {
-     "t": 893,
+     "t": 3358,
      "kind": "tap",
      "x": 259.9375,
      "y": 515.09375,
-     "label": "Start"
+     "label": "Maya starts a block",
+     "path": [
+      [
+       2247,
+       195,
+       793
+      ],
+      [
+       2263,
+       195,
+       792.9
+      ],
+      [
+       2280,
+       194.9,
+       792.5
+      ],
+      [
+       2298,
+       194.8,
+       792
+      ],
+      [
+       2314,
+       194.7,
+       791
+      ],
+      [
+       2329,
+       194.4,
+       789.7
+      ],
+      [
+       2347,
+       194.1,
+       787.9
+      ],
+      [
+       2364,
+       193.8,
+       785.6
+      ],
+      [
+       2380,
+       193.4,
+       782.7
+      ],
+      [
+       2397,
+       193,
+       779.3
+      ],
+      [
+       2414,
+       192.6,
+       775.3
+      ],
+      [
+       2431,
+       192.3,
+       770.7
+      ],
+      [
+       2447,
+       192,
+       765.4
+      ],
+      [
+       2464,
+       191.8,
+       759.5
+      ],
+      [
+       2480,
+       191.7,
+       753
+      ],
+      [
+       2497,
+       191.9,
+       745.8
+      ],
+      [
+       2514,
+       192.2,
+       738.1
+      ],
+      [
+       2531,
+       192.8,
+       729.8
+      ],
+      [
+       2547,
+       193.6,
+       721
+      ],
+      [
+       2564,
+       194.8,
+       711.6
+      ],
+      [
+       2580,
+       196.2,
+       701.9
+      ],
+      [
+       2597,
+       198,
+       691.8
+      ],
+      [
+       2614,
+       200,
+       681.4
+      ],
+      [
+       2631,
+       202.3,
+       670.9
+      ],
+      [
+       2647,
+       204.9,
+       660.2
+      ],
+      [
+       2665,
+       207.7,
+       649.4
+      ],
+      [
+       2680,
+       210.8,
+       638.7
+      ],
+      [
+       2697,
+       214,
+       628.2
+      ],
+      [
+       2714,
+       217.3,
+       617.8
+      ],
+      [
+       2731,
+       220.7,
+       607.8
+      ],
+      [
+       2747,
+       224.1,
+       598.1
+      ],
+      [
+       2764,
+       227.6,
+       588.8
+      ],
+      [
+       2781,
+       231,
+       580.1
+      ],
+      [
+       2797,
+       234.3,
+       571.8
+      ],
+      [
+       2814,
+       237.4,
+       564.1
+      ],
+      [
+       2831,
+       240.4,
+       557
+      ],
+      [
+       2847,
+       243.3,
+       550.5
+      ],
+      [
+       2864,
+       245.9,
+       544.6
+      ],
+      [
+       2882,
+       248.3,
+       539.3
+      ],
+      [
+       2897,
+       250.5,
+       534.6
+      ],
+      [
+       2913,
+       252.4,
+       530.5
+      ],
+      [
+       2930,
+       254.1,
+       526.9
+      ],
+      [
+       2946,
+       255.5,
+       524
+      ],
+      [
+       2963,
+       256.8,
+       521.5
+      ],
+      [
+       2980,
+       257.7,
+       519.5
+      ],
+      [
+       2996,
+       258.5,
+       517.9
+      ],
+      [
+       3013,
+       259.1,
+       516.8
+      ],
+      [
+       3030,
+       259.5,
+       516
+      ],
+      [
+       3046,
+       259.7,
+       515.5
+      ],
+      [
+       3063,
+       259.9,
+       515.2
+      ],
+      [
+       3080,
+       259.9,
+       515.1
+      ],
+      [
+       3096,
+       259.9,
+       515.1
+      ]
+     ],
+     "cur": "pointer"
     },
     {
-     "t": 3434,
+     "t": 4154,
      "kind": "wait",
-     "label": "mid-block"
+     "label": "she works part of the way in"
     },
     {
-     "t": 3446,
+     "t": 7476,
      "kind": "tap",
      "x": 93.9375,
      "y": 515.09375,
-     "label": "Reset"
+     "label": "she abandons it and hits Reset",
+     "path": [
+      [
+       6447,
+       259.9,
+       515.1
+      ],
+      [
+       6475,
+       259.8,
+       515.1
+      ],
+      [
+       6480,
+       259.6,
+       515.2
+      ],
+      [
+       6497,
+       259.2,
+       515.4
+      ],
+      [
+       6513,
+       258.5,
+       515.7
+      ],
+      [
+       6530,
+       257.5,
+       516.2
+      ],
+      [
+       6547,
+       256.2,
+       516.7
+      ],
+      [
+       6563,
+       254.6,
+       517.4
+      ],
+      [
+       6580,
+       252.5,
+       518.2
+      ],
+      [
+       6596,
+       250.1,
+       519.1
+      ],
+      [
+       6613,
+       247.2,
+       520
+      ],
+      [
+       6630,
+       243.8,
+       521.1
+      ],
+      [
+       6646,
+       240,
+       522.1
+      ],
+      [
+       6664,
+       235.8,
+       523.2
+      ],
+      [
+       6681,
+       231,
+       524.2
+      ],
+      [
+       6697,
+       225.9,
+       525.1
+      ],
+      [
+       6714,
+       220.3,
+       525.9
+      ],
+      [
+       6731,
+       214.4,
+       526.6
+      ],
+      [
+       6748,
+       208.1,
+       527.2
+      ],
+      [
+       6764,
+       201.5,
+       527.6
+      ],
+      [
+       6781,
+       194.6,
+       527.8
+      ],
+      [
+       6797,
+       187.6,
+       527.9
+      ],
+      [
+       6814,
+       180.5,
+       527.8
+      ],
+      [
+       6831,
+       173.4,
+       527.5
+      ],
+      [
+       6848,
+       166.2,
+       527
+      ],
+      [
+       6864,
+       159.2,
+       526.5
+      ],
+      [
+       6879,
+       152.4,
+       525.8
+      ],
+      [
+       6897,
+       145.8,
+       525
+      ],
+      [
+       6913,
+       139.5,
+       524.2
+      ],
+      [
+       6930,
+       133.6,
+       523.3
+      ],
+      [
+       6946,
+       128,
+       522.3
+      ],
+      [
+       6963,
+       122.8,
+       521.4
+      ],
+      [
+       6980,
+       118.1,
+       520.5
+      ],
+      [
+       6996,
+       113.9,
+       519.7
+      ],
+      [
+       7013,
+       110,
+       518.9
+      ],
+      [
+       7030,
+       106.7,
+       518.2
+      ],
+      [
+       7046,
+       103.8,
+       517.5
+      ],
+      [
+       7063,
+       101.3,
+       516.9
+      ],
+      [
+       7080,
+       99.3,
+       516.4
+      ],
+      [
+       7096,
+       97.6,
+       516
+      ],
+      [
+       7114,
+       96.3,
+       515.7
+      ],
+      [
+       7131,
+       95.4,
+       515.5
+      ],
+      [
+       7147,
+       94.7,
+       515.3
+      ],
+      [
+       7164,
+       94.3,
+       515.2
+      ],
+      [
+       7181,
+       94,
+       515.1
+      ],
+      [
+       7197,
+       94,
+       515.1
+      ],
+      [
+       7214,
+       93.9,
+       515.1
+      ]
+     ],
+     "cur": "pointer"
     },
     {
-     "t": 3740,
+     "t": 8274,
      "kind": "assert",
      "status": "PASS",
-     "label": "reset restores the full block"
+     "label": "the timer goes back to a full, untouched block"
     },
     {
-     "t": 3742,
+     "t": 8275,
      "kind": "assert",
      "status": "PASS",
-     "label": "control returns to Start"
+     "label": "the button offers Start again, as if nothing had run"
     },
     {
-     "t": 3744,
+     "t": 8276,
      "kind": "assert",
      "status": "PASS",
-     "label": "no slice awarded for an abandoned block"
+     "label": "and crucially she earns NO slice for the abandoned work"
     },
     {
-     "t": 4314,
+     "t": 8742,
      "kind": "shot",
      "label": "reset-full-block"
     }
    ],
    "net": [
     {
-     "t": 7,
+     "t": 2,
      "method": "GET",
      "url": "/?focus=60",
      "status": 200,
      "type": "document"
     },
     {
-     "t": 125,
+     "t": 102,
      "method": "GET",
      "url": "https://fonts.googleapis.com/css2?family=Archivo:wght@500;800&family=Space+Grotesk:wght@400;600&display=swap",
      "status": 200,
      "type": "stylesheet"
     },
     {
-     "t": 311,
+     "t": 236,
      "method": "GET",
-     "url": "https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxKsv4Rn.woff2",
+     "url": "https://fonts.gstatic.com/s/spacegrotesk/v22/V8mDoQDjQSkFtoMM3T6r8E7mPbF4C_k3HqU.woff2",
      "status": 200,
      "type": "font"
     },
     {
-     "t": 326,
+     "t": 261,
      "method": "GET",
-     "url": "https://fonts.gstatic.com/s/spacegrotesk/v22/V8mDoQDjQSkFtoMM3T6r8E7mPbF4C_k3HqU.woff2",
+     "url": "https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxKsv4Rn.woff2",
      "status": 200,
      "type": "font"
     }
