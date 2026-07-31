@@ -73,7 +73,10 @@ const CLOCKED = new Set(); // journeys whose clock has already started
 /** Register a page as a track on this journey and wire its diagnostics. */
 function openTrack(j, ctx, page, label) {
   const r = rp(j);
-  const t = { id: r.tracks.length, label, ctx, page, video: null };
+  // startedAt anchors this surface on the journey's clock: its recording
+  // begins when the page opens, which is what lets the player run every
+  // surface off ONE timeline instead of making you pick between them.
+  const t = { id: r.tracks.length, label, ctx, page, video: null, startedAt: Date.now() - r.t0 };
   r.tracks.push(t);
   TRACK.set(page, t);
   const tag = t.id ? ` · ${label}` : '';
@@ -566,7 +569,7 @@ async function main() {
     const journeys = Object.fromEntries(
       Object.entries(replays).map(([name, r]) => [
         name,
-        { ...r, tracks: r.tracks.map(({ id, label, video }) => ({ id, label, video })) },
+        { ...r, tracks: r.tracks.map(({ id, label, video, startedAt }) => ({ id, label, video, startedAt })) },
       ])
     );
     fs.writeFileSync(

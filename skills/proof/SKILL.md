@@ -45,7 +45,7 @@ A stale server from another checkout will happily serve old code and every journ
 
 ### 3. Write the runner from the template
 
-Copy `references/run-template.mjs` (as `run.mjs`) and `references/report-template.mjs` (as `report.mjs`, verbatim — no edits needed) into a `<feature>-journeys/` folder at the repo root and adapt the runner. The template gives you the harness contract:
+Copy `references/run-template.mjs` (as `run.mjs`) and `references/report-template.mjs` (as `report.mjs`, verbatim — no edits needed) into `proof/<feature>/` at the repo root (one folder per feature, regenerated in place) and adapt the runner. The template gives you the harness contract:
 
 - **Real Chrome, headless, desktop viewport by default** (1280×800) — most web apps are used in a desktop browser, so that's the honest review surface. **Pick the device from the app, not a habit:** record phone (390×844, dpr 2 — `PROOF_DEVICE=phone` or `--device=phone`) only when the app is mobile-only, or the ticket is specifically about a mobile/responsive/touch surface. If the feature has genuinely distinct, important experiences on *both* desktop and mobile, **ask the user** which to prove — or whether to prove both — before you run; don't guess. The proof page renders the matching chrome automatically (a browser window for desktop, a phone for mobile).
 - **Fresh throwaway users per journey** with a greppable email prefix (e.g. `fpj_…@t.com`), purged at the start of every run so reruns are deterministic.
@@ -58,6 +58,7 @@ Copy `references/run-template.mjs` (as `run.mjs`) and `references/report-templat
 - **Popups and extra sessions are recorded too — drive them like any other surface.** Every page a context opens is adopted automatically as its own **track**: a `target="_blank"` tab, a `window.open`, an OAuth consent screen, or a second `freshUser()` for a collab/permissions/second-device journey. Each gets its own recording (`videos/<journey>.webm`, then `-2`, `-3`…), its own cursor track, and its own errors and network traffic attributed to it; the player shows a **surface** switcher when a journey has more than one. Grab a popup with `const p = ctx.waitForEvent('page')` before the click that opens it, then drive it with the same `tap`/`fillIn`/`pause` helpers. This is what makes the OAuth round trip in step 1 actually provable rather than something you stop short of.
 - **Un-automatable steps go through `manual(page, j, label, { stage })` — never fake them.** Some real steps a machine physically can't perform: a fingerprint/passkey, a CAPTCHA, an OAuth consent screen, a 3DS/OTP challenge, a native OS dialog. Run locally in a TTY and `manual()` pauses so you do it live in the browser and press Enter — the recording captures the real thing. Run headless/CI and you pass a `stage` fn that applies the step's *effect* via API/DB so the journey continues. Either way you **still `rec()` the real OUTCOME afterward** (the passkey logged you in → assert the authenticated state). Manual steps are logged as MANUAL and shown as manual (⏸) in the report — never blended into the machine-driven steps, never counted as a pass or a fail. This is the sanctioned, honest alternative to the one thing you must never do: fabricate a recording.
 - **A `PROMISES` map** — one sentence per journey, quoted from the ticket. It headlines the TLDR in both reports, so a reviewer reads *what* was proven before *how*.
+- **Two videos per surface.** `videos/<j>.webm` is the raw recording, untouched — the player embeds it and draws a crisp vector cursor you can toggle. `videos/<j>.mp4` is the same run with the **cursor rendered into the pixels**, driven along the pointer's real recorded path, so the file still shows what happened once it leaves this page — dropped into Slack, a ticket, or a chat. Nothing is invented in either: the mp4's cursor positions are the sampled coordinates, and the master stays beside it so the bake can always be redone.
 - **The report writer** (`report.mjs`) — one call writes every view of the same results: `report.json` (machine), `REPORT.md` (GitHub-renderable: verdict + replay.gif + promises table + before/after pairs + ✅/❌ per step, screenshots inline), and `REPORT.html` — **THE proof page, one system, one self-contained file**: the run's real screen recordings in a scrubbable player up top (video-editor timeline with input + assertion ticks, a real cursor replaying the pointer's recorded path, network log, per-step timing). **Nothing is drawn over the app but the cursor** — no captions, no title cards, no highlight boxes. The app is the thing the reviewer came to watch and every overlay competes with it. Below the player sits the evidence — verdict stamp, TL;DR promises, before/after drag-sliders, journey ledgers with filmstrips, viewport strip. Everything embedded as data URIs (videos as mp4 when ffmpeg is available), so the single file renders anywhere. With `ffmpeg` on PATH it also emits `replay.gif` straight from the happy-path recording, which REPORT.md embeds — GitHub animates it right in the PR. Exit non-zero on any failure.
 
 ### 4. Run until green — then LOOK at the screenshots
@@ -83,8 +84,8 @@ If the change alters an existing surface — and *especially* for a bugfix — c
 ```bash
 git worktree add /tmp/proof-base $(git merge-base HEAD origin/main)
 # boot that checkout on a second port, then:
-PORT=5002 node <feature>-journeys/run.mjs --baseline
-node <feature>-journeys/run.mjs   # regenerate reports — pairs appear automatically
+PORT=5002 node proof/<feature>/run.mjs --baseline
+node proof/<feature>/run.mjs   # regenerate reports — pairs appear automatically
 ```
 
 Baseline runs are capture-only: same journeys, same shot names, but shots land in `shots-baseline/`, assertions don't gate (the feature isn't supposed to exist back there), and no reports are written. The report writer pairs shots by journey + filename: REPORT.md gets a side-by-side table, REPORT.html gets drag-sliders. For a bugfix, the before-shot *showing the bug* is the strongest evidence a pack can carry. Write journeys with `count()`-guarded lookups (see the demo) so a baseline run reaches every `shot()` instead of throwing on a surface that doesn't exist yet.
@@ -94,16 +95,17 @@ Baseline runs are capture-only: same journeys, same shot names, but shots land i
 Commit the whole folder with the PR:
 
 ```
-<feature>-journeys/
+proof/<feature>/
   run.mjs            # the journeys
   report.mjs         # the report writer (verbatim from the template)
   viewports.mjs      # the size sweep
   report.json        # machine-readable results
-  replay.json        # input + network event log (drives the player)
+  replay.json        # surfaces, input + network event log (drives the player)
   REPORT.md          # TLDR verdict + replay.gif + before/after + ✅/❌ per step — renders in the PR
-  REPORT.html        # THE proof page: recordings player + stamp + sliders + ledgers — one file
+  REPORT.html        # THE proof page: player + stamp + sliders + ledgers — one file
   replay.gif         # (with ffmpeg) happy-path recording — animates in the PR
-  videos/<j>.webm    # raw screen recordings, one per journey
+  videos/<j>.webm    # raw screen recording, untouched — one per surface
+  videos/<j>.mp4     # the same run with the CURSOR BAKED IN — shareable anywhere
   shots/<journey>/   # numbered screenshots
   shots-baseline/    # (optional) merge-base captures for before/after pairs
   shots/viewports/   # one per size
@@ -116,7 +118,7 @@ Paste REPORT.md's TLDR block (verdict line + promises table) into the PR descrip
 **Always deliver a viewable proof URL in the chat — publish it, don't host it.** Your final message after a run must lead with a link the user can actually open, and never substitute a PR link (GitHub renders REPORT.md but NOT REPORT.html; a PR link is not a proof link). REPORT.html is a single self-contained file (all video/screenshots embedded), so the durable way to deliver it is to **publish it as a hosted artifact**, in this order of preference:
 
 1. **Publish REPORT.html as a shareable artifact** whenever a publish/artifact capability exists in your environment (e.g. the Artifact tool) — this yields a durable URL that opens anywhere, for anyone, with nothing running. This is the default. Lead with it.
-2. **Otherwise link the committed file**: `[REPORT.html](<feature>-journeys/REPORT.html)` when the pack is on the user's machine and they can open it directly.
+2. **Otherwise link the committed file**: `[REPORT.html](proof/<feature>/REPORT.html)` when the pack is on the user's machine and they can open it directly.
 3. **A localhost URL is a last resort, never the deliverable.** A `localhost:<port>` link only resolves on the exact machine running that exact server, right now — it dies the moment the server stops and means nothing on a cloud/ephemeral run. Use localhost *only* to feed a preview panel that technically requires it, and even then also hand over a durable link (1 or 2). Do not spin up a server and paste its URL as "the proof."
 
 If the pack only exists on a branch/remote (cloud run, worktree), do NOT stop at a PR or localhost link — publish REPORT.html as an artifact (it embeds all its media precisely so it stays viewable detached from the repo) before ending the turn.

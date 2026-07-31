@@ -4,9 +4,9 @@
 // RECORDS every journey (clean video; the player redraws a real cursor from
 // the pointer path logged during the run).
 // Writes report.json + REPORT.md + the REPORT.html proof page (+ replay.gif).
-//   node demo/pomodoro-journeys/run.mjs              # prove this build
-//   node demo/pomodoro-journeys/run.mjs --baseline   # capture the merge-base
-//   node demo/pomodoro-journeys/run.mjs --no-replay  # skip video recording
+//   node proof/pomodoro/run.mjs              # prove this build
+//   node proof/pomodoro/run.mjs --baseline   # capture the merge-base
+//   node proof/pomodoro/run.mjs --no-replay  # skip video recording
 import { chromium } from 'playwright';
 import { spawn } from 'child_process';
 import fs from 'fs';
@@ -18,7 +18,7 @@ const BASE = `http://localhost:${PORT}`;
 const FOLDER = path.dirname(new URL(import.meta.url).pathname);
 const ARGS = process.argv.slice(2);
 const BASELINE = ARGS.includes('--baseline');
-const APP_DIR = path.join(FOLDER, '..', BASELINE ? 'pomodoro-app-baseline' : 'pomodoro-app');
+const APP_DIR = path.join(FOLDER, '..', '..', 'demo', BASELINE ? 'pomodoro-app-baseline' : 'pomodoro-app');
 const ROOT = path.join(FOLDER, BASELINE ? 'shots-baseline' : 'shots');
 // Device to record at. This demo app (wedge) is mobile-only, so it records at
 // phone size — the exception, not the rule. Most web apps keep the template's
@@ -50,7 +50,10 @@ const TRACK = new WeakMap(); // page -> track
 const CLOCKED = new Set(); // journeys whose clock has already started
 function openTrack(j, ctx, page, label) {
   const r = rp(j);
-  const t = { id: r.tracks.length, label, ctx, page, video: null };
+  // startedAt anchors this surface on the journey's clock: its recording
+  // begins when the page opens, which is what lets the player run every
+  // surface off ONE timeline instead of making you pick between them.
+  const t = { id: r.tracks.length, label, ctx, page, video: null, startedAt: Date.now() - r.t0 };
   r.tracks.push(t);
   TRACK.set(page, t);
   const tag = t.id ? ` · ${label}` : '';
@@ -452,7 +455,7 @@ async function main() {
     const journeys = Object.fromEntries(
       Object.entries(replays).map(([name, r]) => [
         name,
-        { ...r, tracks: r.tracks.map(({ id, label, video }) => ({ id, label, video })) },
+        { ...r, tracks: r.tracks.map(({ id, label, video, startedAt }) => ({ id, label, video, startedAt })) },
       ])
     );
     fs.writeFileSync(

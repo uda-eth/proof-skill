@@ -5,7 +5,7 @@
 `/proof` drives your actual app — real dev server, real database, real Chrome (desktop by default, phone for mobile-only apps) — through the user journeys your ticket promised, asserts every step, screenshots every state, and commits the evidence next to the PR:
 
 ```
-<feature>-journeys/
+proof/<feature>/
   run.mjs            # the journeys (Playwright, one per promise)
   report.mjs         # the report writer (copied verbatim from the template)
   viewports.mjs      # 320px → 1280px sanity sweep
@@ -61,12 +61,12 @@ Claude derives the journeys from the ticket/diff, writes the runner from the bun
 
 ```bash
 npm i playwright && npx playwright install chromium
-node demo/pomodoro-journeys/run.mjs --baseline  # capture the merge-base build (demo/pomodoro-app-baseline)
-node demo/pomodoro-journeys/run.mjs             # 17 assertions + shots/ + reports with before/after pairs
-node demo/pomodoro-journeys/viewports.mjs       # 320px → 1280px sweep
+node proof/pomodoro/run.mjs --baseline  # capture the merge-base build (demo/pomodoro-app-baseline)
+node proof/pomodoro/run.mjs             # 17 assertions + shots/ + reports with before/after pairs
+node proof/pomodoro/viewports.mjs       # 320px → 1280px sweep
 ```
 
-Open `demo/pomodoro-journeys/REPORT.md` to see what renders in a PR, then open `REPORT.html` in a browser — the proof page. Up top, press play: every journey is a **real screen recording of the test** — a reticle was injected into the live page during the run, gliding to each recorded input coordinate before the click lands — in a scrubbable player with a video-editor timeline, synced step ledger, and network log. Below it, the evidence: verdict stamp, TL;DR, before/after sliders against the merge-base build, per-journey assertion ledgers with filmstrips, and the viewport sweep. With `ffmpeg` installed the runner also emits `replay.gif` — the recording animating right inside REPORT.md.
+Open `proof/pomodoro/REPORT.md` to see what renders in a PR, then open `REPORT.html` in a browser — the proof page. Up top, press play: every journey is a **real screen recording of the test** — the runner drives a real pointer along a human trajectory, and the player redraws a macOS cursor along that exact recorded path — in a scrubbable player with a video-editor timeline, synced step ledger, and network log. Below it, the evidence: verdict stamp, TL;DR, before/after sliders against the merge-base build, per-journey assertion ledgers with filmstrips, and the viewport sweep. With `ffmpeg` installed the runner also emits `replay.gif` — the recording animating right inside REPORT.md.
 
 ## What's in the box
 
