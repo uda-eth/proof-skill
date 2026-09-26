@@ -47,6 +47,23 @@ Then, at review stage:
 
 Claude derives the journeys from the ticket/diff, writes the runner from the bundled template, runs it until green, eyeballs the screenshots for the failure modes assertions can't see, sweeps five viewports, and leaves the proof pack in your working tree.
 
+## The court: for big claims
+
+A proof pack proves the journeys *you* thought of. For a port, an "exact parity" claim, a release candidate or any gated multi-week build, `/proof` also runs a **court** so the builder never grades its own work:
+
+- **The Judge**: an independent model (Codex, via `codex exec` on a clean worktree of the exact commit) approves or blocks each **gate** and rules on every case.
+- **The Jury**: each round, a fresh swarm of bug-bounty agents, one per area. Every finding comes with a failing probe test plus file:line on both sides, and is filed as a case.
+- **Fixers**: separate agents that fix the product until the probes pass, without weakening them.
+- **Exit**: one full round of fresh jurors files zero new VALID cases, with every earlier case ruled FIXED. Then the final gate, then a human tests.
+
+Everything needed ships in [`skills/proof/references/court/`](skills/proof/references/court/):
+- the scripts: `judge.sh`, `jury-rule.sh`, `intake.sh`, `merge-fix.sh`;
+- the JSON schemas;
+- `court.env.example`;
+- templates for the Judge rubric, the Jury rules, gate files, and juror and fixer briefs.
+
+Requires the [Codex CLI](https://github.com/openai/codex) for the Judge.
+
 ## The rules the skill enforces
 
 1. **Never mock the network layer** — journeys hit the same server a user would.
@@ -74,6 +91,7 @@ Open `proof/pomodoro/REPORT.md` to see what renders in a PR, then open `REPORT.h
 - [`skills/proof/references/run-template.mjs`](skills/proof/references/run-template.mjs) — the journey runner harness (rec/shot contract, tap/fillIn/swipe act helpers with screen recording + in-page reticle, API-staged users, DB helpers, `--baseline` capture mode).
 - [`skills/proof/references/report-template.mjs`](skills/proof/references/report-template.mjs) — the report writer: one results array → `report.json` + a TLDR-first `REPORT.md` + one self-contained `REPORT.html` proof page — screen-recording player, verdict stamp, before/after sliders, ledgers (and `replay.gif` when ffmpeg is present). Zero dependencies beyond playwright.
 - [`skills/proof/references/viewports-template.mjs`](skills/proof/references/viewports-template.mjs) — the five-viewport sweep.
+- [`skills/proof/references/court/`](skills/proof/references/court/) — the Judge + Jury kit: scripts, schemas, config and brief templates.
 
 Records at a desktop viewport (1280×800) by default — the honest surface for most web apps; `PROOF_DEVICE=phone` records phone-sized for mobile-only apps or mobile-specific tickets, and the proof page swaps the browser window for a phone frame. Works with any web app Playwright can drive. The templates assume Node + a Postgres `DATABASE_URL` for optional direct staging; both are trivially swappable.
 

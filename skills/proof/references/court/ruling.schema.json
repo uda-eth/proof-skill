@@ -1,0 +1,9 @@
+{ "type": "object", "additionalProperties": false, "required": ["rulings"],
+  "properties": { "rulings": { "type": "array", "items": { "type": "object", "additionalProperties": false,
+    "required": ["case_id", "ruling", "severity", "rationale", "required_fix"],
+    "properties": {
+      "case_id": { "type": "string" },
+      "ruling": { "type": "string", "enum": ["VALID", "INVALID", "DUPLICATE", "ACCEPTED-GAP", "FIXED", "STILL-OPEN"] },
+      "severity": { "type": "string", "enum": ["critical", "high", "medium", "low", "n/a"] },
+      "rationale": { "type": "string" },
+      "required_fix": { "type": "string" } } } } } }

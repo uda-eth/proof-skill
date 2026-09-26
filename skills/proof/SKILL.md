@@ -1,6 +1,6 @@
 ---
 name: proof
-description: Prove a task is actually done before it merges — drive the real app through end-to-end user journeys in a real browser, assert every step, capture screenshots, and produce a committed proof pack (REPORT.md + shots/). Use at review stage whenever a feature or bugfix claims to be complete; "tests pass" is not proof, a user journey is.
+description: Prove a task is actually done before it merges — drive the real app through end-to-end user journeys in a real browser, assert every step, capture screenshots, and produce a committed proof pack (REPORT.md + shots/). Use at review stage whenever a feature or bugfix claims to be complete; "tests pass" is not proof, a user journey is. For big claims (ports, "exact parity", release candidates, gated multi-week work) also run the court — an independent Judge (Codex) approves gates and rules on cases filed by rounds of fresh bug-bounty Jury agents, until a round finds zero valid regressions.
 ---
 
 # /proof — the user-journey proof loop
@@ -122,6 +122,46 @@ Paste REPORT.md's TLDR block (verdict line + promises table) into the PR descrip
 3. **A localhost URL is a last resort, never the deliverable.** A `localhost:<port>` link only resolves on the exact machine running that exact server, right now — it dies the moment the server stops and means nothing on a cloud/ephemeral run. Use localhost *only* to feed a preview panel that technically requires it, and even then also hand over a durable link (1 or 2). Do not spin up a server and paste its URL as "the proof."
 
 If the pack only exists on a branch/remote (cloud run, worktree), do NOT stop at a PR or localhost link — publish REPORT.html as an artifact (it embeds all its media precisely so it stays viewable detached from the repo) before ending the turn.
+
+## The court: Judge + Jury (for big claims)
+
+A proof pack proves the journeys **you** thought of. It can't prove what you missed. When the claim is large, run the court on top of the loop above: a port or rewrite ("exact parity with X"), a release candidate, a multi-week feature, or anything with gates. The builder (you) never grades its own work:
+
+- **The Judge** is an independent model (Codex via `codex exec`, read-only on a clean worktree of the exact commit). It approves or blocks each **gate** and rules on every Jury case. No gate is done until it says `APPROVE`.
+- **The Jury** is a swarm of FRESH bug-bounty agents, one per area. Each proves every finding with a **failing probe test** plus file:line on both sides, and files it as a case. Jurors never fix code.
+- **Fixers** are separate agents. They fix the product until the probes pass, without weakening them.
+- **Exit:** the final gate needs one full round of fresh jurors that files **zero new VALID cases**, plus zero open VALID cases. Then the owner tests.
+
+### Setup (once per repo)
+Copy `references/court/` into the repo:
+- the scripts go in `scripts/court/`, and `court.env.example` becomes `court.env` (edit it);
+- `templates/JUDGE.md` and `verdict.schema.json` go in `<COURT_DIR>/judge/`;
+- `templates/JURY.md` and `ruling.schema.json` go in `<COURT_DIR>/jury/`.
+
+Then write one `judge/gates/<name>.md` per gate from `templates/gate.md`. Include a proof gate, judged on this skill's proof pack, and a final gate. Commit all of it. The PRD should say which gates exist and what "regression" means.
+
+### The loop
+1. **Build**, then run `scripts/court/judge.sh <gate>`. On `CHANGES_REQUESTED`, fix every blocking item and add a `## Round N note` to the gate file. Rerun until `APPROVE`.
+2. **Jury round R.** Spawn one fresh juror per area, in parallel, from `templates/juror-brief.md`. Each works on its own branch `jury/rR-<area>`.
+3. **Intake**, as each juror reports: `scripts/court/intake.sh <area> R`. Cases and evidence land on main, and the probe tests are stored as `.txt` evidence, so a red test never lands on main. Then the Judge rules on them.
+4. **Fix.** Spawn fixers from `templates/fixer-brief.md`, one per area. They may start **before** the ruling when the Judge is busy; the Judge rules on the case and the fix together.
+5. **Merge:** `scripts/court/merge-fix.sh fix/<x> "<test projects>" <case files>`. It merges, builds and tests, and pushes only when green. Then the Judge re-rules the cases as `FIXED` or `STILL-OPEN`.
+6. **Next round** with NEW jurors on the new main. Repeat until a round comes back clean, then run the final gate.
+
+### Court rules (each one was learned the hard way)
+- **Gate name = file name.** Run `judge.sh G2-recorder`, not `G2`. With the wrong name the Judge silently misses the round notes.
+- **Commit rulings the moment they land.** A `reset --hard` in a helper once wiped a whole batch of FIXED rulings. The helpers undo merges with `merge --abort` / `reset --merge` only.
+- **Verify every push against origin** (`git rev-parse HEAD == origin/main`). A wrapper printed "ok" while pushing nothing, because another agent had switched the main checkout's branch. Agents always work in their own worktrees and never check out a branch in the main checkout.
+- **Fresh jurors every round.** A juror that audits its own earlier findings, or code it helped fix, goes easy on it.
+- **Tell jurors what NOT to file.** List the cases already fixed but not yet ruled, the pending owner decisions, and the accepted gaps. Otherwise rounds fill up with duplicates.
+- **Jurors disagree; the source decides.** When two jurors contradict each other about reference behaviour, have the fixer check the reference source (or run a probe on the reference) before fixing.
+- **A later round can overturn a FIXED case.** For example, "the fix assumed the reference does X, it never does". Reopen it and re-rule it; don't defend the old fix.
+- **Owner decisions stay with the owner.** Changing defaults, pricing, or anything the reference doesn't settle gets a researched proposal in chat, not a silent change.
+- **Flakes are defects.** A test that passes alone but fails under load blocks merges and will poison the final gate. Root-cause it (fake clocks, real synchronisation, or a real product race); never add retries.
+- **Shared scratch folders get clobbered.** Every agent uses unique log-file names.
+- **Real hardware beats headless.** Headless harnesses activate popups, have one audio device, and never sleep. Prove device, focus, DPI and power behaviour on a real machine when one is available, and commit the evidence. Never commit full-desktop screenshots from a machine that may show secrets.
+- **The Judge can run out.** Codex has usage limits. On "usage limit … try again at T", keep intake and fixes going with `NO_RULE=1`, queue the rulings, and schedule a resume just after T. Tell the owner once, in case they want to buy credits.
+- **The proof pack is a gate too.** The proof gate is judged on `REPORT.html` plus the committed pack, published as an artifact per rule 7.
 
 ## Rules
 

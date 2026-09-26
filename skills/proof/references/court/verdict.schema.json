@@ -1,0 +1,43 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["gate", "verdict", "summary", "blocking", "nonblocking", "verified"],
+  "properties": {
+    "gate": { "type": "string" },
+    "verdict": { "type": "string", "enum": ["APPROVE", "CHANGES_REQUESTED"] },
+    "summary": { "type": "string" },
+    "verified": {
+      "type": "array",
+      "description": "What the judge personally checked (commands run and their results, files read, screenshots inspected).",
+      "items": { "type": "string" }
+    },
+    "blocking": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "area", "location", "problem", "required_fix"],
+        "properties": {
+          "id": { "type": "string" },
+          "area": { "type": "string" },
+          "location": { "type": "string" },
+          "problem": { "type": "string" },
+          "required_fix": { "type": "string" }
+        }
+      }
+    },
+    "nonblocking": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "location", "note"],
+        "properties": {
+          "id": { "type": "string" },
+          "location": { "type": "string" },
+          "note": { "type": "string" }
+        }
+      }
+    }
+  }
+}
